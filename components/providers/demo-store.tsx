@@ -3,12 +3,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   initialProducts,
+  initialPurchaseOrders,
   initialReviewItems,
+  initialStockInRecords,
   initialTasks,
   stores,
   type CollectTask,
   type Product,
+  type PurchaseOrder,
   type ReviewItem,
+  type StockInRecord,
 } from '@/lib/mock-data'
 
 type DemoStore = {
@@ -19,12 +23,18 @@ type DemoStore = {
   addProduct: (p: Omit<Product, 'id' | 'updatedAt'>) => Product
   updateProduct: (id: string, patch: Partial<Product>) => void
   deleteProducts: (ids: string[]) => void
+  adjustStock: (id: string, delta: number) => void
   tasks: CollectTask[]
   addTask: (t: Omit<CollectTask, 'id' | 'createdAt' | 'operator'>) => CollectTask
   updateTask: (id: string, patch: Partial<CollectTask>) => void
   reviewItems: ReviewItem[]
   updateReviewItem: (id: string, patch: Partial<ReviewItem>) => void
   setReviewItems: (updater: (items: ReviewItem[]) => ReviewItem[]) => void
+  purchaseOrders: PurchaseOrder[]
+  addPurchaseOrder: (o: Omit<PurchaseOrder, 'id' | 'createdAt' | 'operator'>) => PurchaseOrder
+  updatePurchaseOrder: (id: string, patch: Partial<PurchaseOrder>) => void
+  stockInRecords: StockInRecord[]
+  addStockInRecord: (r: Omit<StockInRecord, 'id' | 'arrivedAt' | 'operator'>) => StockInRecord
   meituanConnected: boolean
   setMeituanConnected: (v: boolean) => void
 }
@@ -42,6 +52,8 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
   const [products, setProducts] = useState<Product[]>(initialProducts)
   const [tasks, setTasks] = useState<CollectTask[]>(initialTasks)
   const [reviewItems, setReviewItemsState] = useState<ReviewItem[]>(initialReviewItems)
+  const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(initialPurchaseOrders)
+  const [stockInRecords, setStockInRecords] = useState<StockInRecord[]>(initialStockInRecords)
   const [meituanConnected, setMeituanConnected] = useState(false)
   const seq = useRef(100)
 
@@ -58,6 +70,40 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
 
   const deleteProducts = useCallback((ids: string[]) => {
     setProducts((prev) => prev.filter((p) => !ids.includes(p.id)))
+  }, [])
+
+  const adjustStock = useCallback((id: string, delta: number) => {
+    setProducts((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, stock: Math.max(0, p.stock + delta), updatedAt: nowString() } : p)),
+    )
+  }, [])
+
+  const addPurchaseOrder = useCallback((o: Omit<PurchaseOrder, 'id' | 'createdAt' | 'operator'>) => {
+    seq.current += 1
+    const order: PurchaseOrder = {
+      ...o,
+      id: `PO20261020${String(seq.current).padStart(3, '0')}`,
+      createdAt: nowString(),
+      operator: '王店长',
+    }
+    setPurchaseOrders((prev) => [order, ...prev])
+    return order
+  }, [])
+
+  const updatePurchaseOrder = useCallback((id: string, patch: Partial<PurchaseOrder>) => {
+    setPurchaseOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+  }, [])
+
+  const addStockInRecord = useCallback((r: Omit<StockInRecord, 'id' | 'arrivedAt' | 'operator'>) => {
+    seq.current += 1
+    const record: StockInRecord = {
+      ...r,
+      id: `SI20261020${String(seq.current).padStart(3, '0')}`,
+      arrivedAt: nowString(),
+      operator: '王店长',
+    }
+    setStockInRecords((prev) => [record, ...prev])
+    return record
   }, [])
 
   const addTask = useCallback((t: Omit<CollectTask, 'id' | 'createdAt' | 'operator'>) => {
@@ -107,16 +153,22 @@ export function DemoStoreProvider({ children }: { children: ReactNode }) {
       addProduct,
       updateProduct,
       deleteProducts,
+      adjustStock,
       tasks,
       addTask,
       updateTask,
       reviewItems,
       updateReviewItem,
       setReviewItems,
+      purchaseOrders,
+      addPurchaseOrder,
+      updatePurchaseOrder,
+      stockInRecords,
+      addStockInRecord,
       meituanConnected,
       setMeituanConnected,
     }),
-    [storeId, products, addProduct, updateProduct, deleteProducts, tasks, addTask, updateTask, reviewItems, updateReviewItem, setReviewItems, meituanConnected],
+    [storeId, products, addProduct, updateProduct, deleteProducts, adjustStock, tasks, addTask, updateTask, reviewItems, updateReviewItem, setReviewItems, purchaseOrders, addPurchaseOrder, updatePurchaseOrder, stockInRecords, addStockInRecord, meituanConnected],
   )
 
   return <DemoStoreContext.Provider value={value}>{children}</DemoStoreContext.Provider>

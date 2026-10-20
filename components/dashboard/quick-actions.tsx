@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { ClipboardCheck, FileBarChart, PackagePlus, ScanLine, ShoppingCart, Truck, type LucideIcon } from 'lucide-react'
-import { toast } from 'sonner'
 import { SectionCard } from '@/components/common/section-card'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { cn } from '@/lib/utils'
@@ -14,11 +13,11 @@ export function QuickActions() {
   const pendingReview = reviewItems.filter((r) => r.status === '待审核' || r.status === '需补充').length
 
   const actions: Action[] = [
-    { label: '新增商品', desc: '手动录入商品', icon: PackagePlus, href: '/products?action=new' },
+    { label: '新增商品', desc: '手动录入商品', icon: PackagePlus, href: '/products/new' },
     { label: 'AI 商品采集', desc: '图片 / 文件识别', icon: ScanLine, href: '/ai-collect', ai: true },
     { label: '审核识别结果', desc: '确认后导入商品库', icon: ClipboardCheck, href: '/ai-review', ai: true, badge: pendingReview },
-    { label: '入库登记', desc: '扫码快速入库', icon: Truck, onClick: () => toast.info('入库管理', { description: '该模块将在第二阶段开放，当前为 UI 演示' }) },
-    { label: '采购下单', desc: '按预警生成采购单', icon: ShoppingCart, onClick: () => toast.info('采购管理', { description: '该模块将在第二阶段开放，当前为 UI 演示' }) },
+    { label: '入库登记', desc: '扫码快速入库', icon: Truck, href: '/stock-in' },
+    { label: '采购下单', desc: '按预警生成采购单', icon: ShoppingCart, href: '/purchase' },
     { label: '经营报表', desc: '日 / 周 / 月报', icon: FileBarChart, href: '/reports' },
   ]
 

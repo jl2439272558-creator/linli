@@ -15,10 +15,9 @@ import { ProductThumb } from '@/components/common/product-thumb'
 import { StatusBadge } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
-import { brands, categories, getStockStatus, type Product } from '@/lib/mock-data'
+import { brands, categories, getStockStatus, suppliers, type Product } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { ProductFormDialog } from './product-form-dialog'
 import { ProductDetailSheet } from './product-detail-sheet'
 import { ImportDialog } from './import-dialog'
 import { stockTone } from './stock-tone'
@@ -31,6 +30,11 @@ const stockOptions = [
   { value: '库存偏低', label: '库存偏低' },
   { value: '缺货', label: '缺货' },
 ]
+const statusOptions = [
+  { value: ALL, label: '全部' },
+  { value: '在售', label: '在售' },
+  { value: '停售', label: '停售' },
+]
 
 export function ProductsView() {
   const router = useRouter()
@@ -41,12 +45,12 @@ export function ProductsView() {
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [category, setCategory] = useState(params.get('category') ?? ALL)
   const [brand, setBrand] = useState(ALL)
+  const [supplier, setSupplier] = useState(ALL)
+  const [status, setStatus] = useState(ALL)
   const [stock, setStock] = useState(params.get('stock') ?? ALL)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(8)
   const [selected, setSelected] = useState<string[]>([])
-  const [formOpen, setFormOpen] = useState(params.get('action') === 'new')
-  const [editing, setEditing] = useState<Product | null>(null)
   const [viewing, setViewing] = useState<Product | null>(null)
   const [importOpen, setImportOpen] = useState(false)
 
@@ -58,24 +62,22 @@ export function ProductsView() {
     setQuery(params.get('q') ?? '')
     setCategory(params.get('category') ?? ALL)
     setStock(params.get('stock') ?? ALL)
-    if (params.get('action') === 'new') {
-      setEditing(null)
-      setFormOpen(true)
-    }
     setPage(1)
   }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return products.filter((p) => {
-      const status = getStockStatus(p)
+      const stockStatus = getStockStatus(p)
       if (q && !p.name.toLowerCase().includes(q) && !(p.barcode ?? '').includes(q) && !p.id.toLowerCase().includes(q)) return false
       if (category !== ALL && p.category !== category) return false
       if (brand !== ALL && p.brand !== brand) return false
-      if (stock === '预警' ? status === '正常' : stock !== ALL && status !== stock) return false
+      if (supplier !== ALL && p.supplier !== supplier) return false
+      if (status !== ALL && p.status !== status) return false
+      if (stock === '预警' ? stockStatus === '正常' : stock !== ALL && stockStatus !== stock) return false
       return true
     })
-  }, [products, query, category, brand, stock])
+  }, [products, query, category, brand, supplier, status, stock])
 
   const pages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const current = Math.min(page, pages)
@@ -83,29 +85,23 @@ export function ProductsView() {
   const rowIds = rows.map((r) => r.id)
   const allChecked = rows.length > 0 && rowIds.every((id) => selected.includes(id))
   const someChecked = rowIds.some((id) => selected.includes(id))
-  const hasFilter = !!query || category !== ALL || brand !== ALL || stock !== ALL
+  const hasFilter = !!query || category !== ALL || brand !== ALL || supplier !== ALL || status !== ALL || stock !== ALL
 
   const resetFilters = () => {
     setQuery('')
     setCategory(ALL)
     setBrand(ALL)
+    setSupplier(ALL)
+    setStatus(ALL)
     setStock(ALL)
     setPage(1)
     if (paramKey) router.replace(pathname)
   }
 
-  const openNew = () => {
-    setEditing(null)
-    setFormOpen(true)
-  }
+  const openNew = () => router.push('/products/new')
   const openEdit = (p: Product) => {
     setViewing(null)
-    setEditing(p)
-    setFormOpen(true)
-  }
-  const closeForm = (o: boolean) => {
-    setFormOpen(o)
-    if (!o && params.get('action')) router.replace(pathname)
+    router.push(`/products/new?id=${p.id}`)
   }
 
   const remove = (ids: string[]) => {
@@ -180,7 +176,7 @@ export function ProductsView() {
 
       <section aria-label="商品列表" className="rounded-xl border border-border bg-card">
         <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-          <div className="relative w-72">
+          <div className="relative w-64">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               aria-label="搜索商品名称或条码"
@@ -200,6 +196,8 @@ export function ProductsView() {
           </div>
           <FilterSelect label="分类" value={category} onChange={(v) => { setCategory(v); setPage(1) }} options={[{ value: ALL, label: '全部' }, ...categories.map((c) => ({ value: c, label: c }))]} />
           <FilterSelect label="品牌" value={brand} onChange={(v) => { setBrand(v); setPage(1) }} options={[{ value: ALL, label: '全部' }, ...brands.map((b) => ({ value: b, label: b }))]} />
+          <FilterSelect label="供应商" value={supplier} onChange={(v) => { setSupplier(v); setPage(1) }} options={[{ value: ALL, label: '全部' }, ...suppliers.map((s) => ({ value: s, label: s }))]} className="w-44" />
+          <FilterSelect label="状态" value={status} onChange={(v) => { setStatus(v); setPage(1) }} options={statusOptions} className="w-32" />
           <FilterSelect label="库存" value={stock} onChange={(v) => { setStock(v); setPage(1) }} options={stockOptions} />
           <Button variant="ghost" className="h-9 text-muted-foreground" onClick={resetFilters} disabled={!hasFilter}>
             <RotateCcw data-icon="inline-start" />
@@ -215,7 +213,7 @@ export function ProductsView() {
               {' 个商品'}
             </span>
             <div className="h-4 w-px bg-border" aria-hidden="true" />
-            <Button variant="ghost" size="sm" onClick={() => toast.info('批量调价', { description: '价格管理模块将在第二阶段开放' })}>
+            <Button variant="ghost" size="sm" onClick={() => toast.info('批量调价', { description: '价格管理模块将在后续阶段开放，改价需人工确认' })}>
               <Tag data-icon="inline-start" />
               批量调价
             </Button>
@@ -233,7 +231,7 @@ export function ProductsView() {
           </div>
         )}
 
-        <Table className="text-[13px]">
+        <Table className="min-w-[1180px] text-[13px]">
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
               <TableHead className="w-10 pl-5">
@@ -244,22 +242,23 @@ export function ProductsView() {
                   onCheckedChange={(c) => setSelected((s) => (c ? Array.from(new Set([...s, ...rowIds])) : s.filter((id) => !rowIds.includes(id))))}
                 />
               </TableHead>
-              <TableHead className="min-w-56">商品信息</TableHead>
-              <TableHead>条码</TableHead>
+              <TableHead className="min-w-52">商品信息</TableHead>
+              <TableHead>商品条码</TableHead>
               <TableHead>分类</TableHead>
               <TableHead>品牌</TableHead>
               <TableHead>规格</TableHead>
               <TableHead className="text-right">进货价</TableHead>
               <TableHead className="text-right">零售价</TableHead>
-              <TableHead className="text-right">库存</TableHead>
+              <TableHead className="text-right">当前库存</TableHead>
               <TableHead>库存状态</TableHead>
+              <TableHead>更新时间</TableHead>
               <TableHead className="pr-5 text-right">操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableCell colSpan={11} className="py-16 text-center">
+                <TableCell colSpan={12} className="py-16 text-center">
                   <p className="text-sm text-foreground">没有找到匹配的商品</p>
                   <p className="mt-1 text-xs text-muted-foreground">请调整搜索关键词或筛选条件</p>
                   <Button variant="outline" size="sm" className="mt-3" onClick={resetFilters}>
@@ -269,8 +268,9 @@ export function ProductsView() {
               </TableRow>
             ) : (
               rows.map((p) => {
-                const status = getStockStatus(p)
+                const stockStatus = getStockStatus(p)
                 const checked = selected.includes(p.id)
+                const low = p.stock < p.safetyStock
                 return (
                   <TableRow key={p.id} data-state={checked ? 'selected' : undefined} className="[&_td]:py-2.5">
                     <TableCell className="pl-5">
@@ -293,6 +293,7 @@ export function ProductsView() {
                                 AI
                               </span>
                             )}
+                            {p.status === '停售' && <span className="rounded bg-muted px-1 text-[10px] font-medium text-muted-foreground">停售</span>}
                           </span>
                         </span>
                       </button>
@@ -303,13 +304,14 @@ export function ProductsView() {
                     <TableCell className="text-muted-foreground">{p.spec ?? '—'}</TableCell>
                     <TableCell className="text-right text-muted-foreground tabular-nums">{formatMoney(p.purchasePrice)}</TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{formatMoney(p.retailPrice)}</TableCell>
-                    <TableCell className={cn('text-right tabular-nums', status === '缺货' ? 'text-danger' : status === '库存偏低' ? 'text-[oklch(0.5_0.12_60)]' : '')}>
+                    <TableCell className={cn('text-right tabular-nums', stockStatus === '缺货' ? 'text-danger' : low ? 'text-[oklch(0.5_0.12_60)]' : '')}>
                       {p.stock}
                       <span className="ml-0.5 text-xs text-muted-foreground">{p.unit}</span>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge tone={stockTone[status]}>{status}</StatusBadge>
+                      <StatusBadge tone={stockTone[stockStatus]}>{stockStatus}</StatusBadge>
                     </TableCell>
+                    <TableCell className="text-xs text-muted-foreground tabular-nums">{p.updatedAt}</TableCell>
                     <TableCell className="pr-5">
                       <div className="flex items-center justify-end gap-0.5">
                         <Button variant="ghost" size="sm" className="text-primary hover:text-primary" onClick={() => setViewing(p)}>
@@ -326,7 +328,7 @@ export function ProductsView() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-36">
                             <DropdownMenuItem onClick={() => toast.success('条码标签已加入打印队列', { description: p.name })}>打印价签</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast.info('库存调整', { description: '库存管理模块将在第二阶段开放' })}>调整库存</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => router.push('/inventory')}>调整库存</DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem variant="destructive" onClick={() => remove([p.id])}>
                               <Trash2 />
@@ -355,7 +357,6 @@ export function ProductsView() {
         />
       </section>
 
-      <ProductFormDialog open={formOpen} onOpenChange={closeForm} product={editing} />
       <ProductDetailSheet product={viewing} onOpenChange={(o) => !o && setViewing(null)} onEdit={openEdit} />
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
     </>

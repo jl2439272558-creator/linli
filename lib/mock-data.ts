@@ -1,5 +1,7 @@
 export type StockStatus = '正常' | '库存偏低' | '缺货'
 
+export type ProductStatus = '在售' | '停售'
+
 export type Product = {
   id: string
   name: string
@@ -10,9 +12,13 @@ export type Product = {
   spec: string | null
   purchasePrice: number | null
   retailPrice: number | null
+  memberPrice: number | null
+  minPrice: number | null
   stock: number
   safetyStock: number
   unit: string
+  supplier: string
+  status: ProductStatus
   source: '手动录入' | 'AI 采集' | '批量导入'
   updatedAt: string
 }
@@ -25,6 +31,10 @@ export const stores = [
   { id: 's3', name: '东湖便利店', address: '杭州市余杭区东湖北路 9 号' },
 ]
 
+export const suppliers = ['杭州华润食品批发', '康达饮料经销', '佳旺日化供应链', '万家粮油商贸', '鲜丰乳品供应']
+
+export const units = ['瓶', '罐', '袋', '桶', '盒', '箱', '提', '包', '件']
+
 export function getStockStatus(p: Pick<Product, 'stock' | 'safetyStock'>): StockStatus {
   if (p.stock <= 0) return '缺货'
   if (p.stock < p.safetyStock) return '库存偏低'
@@ -32,18 +42,18 @@ export function getStockStatus(p: Pick<Product, 'stock' | 'safetyStock'>): Stock
 }
 
 export const initialProducts: Product[] = [
-  { id: 'P10001', name: '农夫山泉 饮用天然水', image: '/products/water.png', barcode: '6921168509256', category: '饮料冲调', brand: '农夫山泉', spec: '550ml/瓶', purchasePrice: 1.15, retailPrice: 2.0, stock: 386, safetyStock: 120, unit: '瓶', source: '手动录入', updatedAt: '2026-10-20 09:12' },
-  { id: 'P10002', name: '可口可乐 汽水 罐装', image: '/products/cola.png', barcode: '6954767410388', category: '饮料冲调', brand: '可口可乐', spec: '330ml/罐', purchasePrice: 1.85, retailPrice: 3.0, stock: 42, safetyStock: 60, unit: '罐', source: '批量导入', updatedAt: '2026-10-19 18:40' },
-  { id: 'P10003', name: '康师傅 红烧牛肉面', image: '/products/noodle-bag.png', barcode: '6900873000258', category: '方便速食', brand: '康师傅', spec: '103g/袋', purchasePrice: 2.1, retailPrice: 3.5, stock: 215, safetyStock: 80, unit: '袋', source: '手动录入', updatedAt: '2026-10-19 16:05' },
-  { id: 'P10004', name: '统一 老坛酸菜牛肉面 桶装', image: '/products/noodle-cup.png', barcode: '6925303721367', category: '方便速食', brand: '统一', spec: '121g/桶', purchasePrice: 3.3, retailPrice: 5.0, stock: 18, safetyStock: 40, unit: '桶', source: 'AI 采集', updatedAt: '2026-10-19 11:22' },
-  { id: 'P10005', name: '维达 超韧抽纸 3 层', image: '/products/tissue.png', barcode: '6901236341285', category: '日用百货', brand: '维达', spec: '100 抽 × 3 包', purchasePrice: 8.6, retailPrice: 12.9, stock: 64, safetyStock: 30, unit: '提', source: '手动录入', updatedAt: '2026-10-18 20:10' },
-  { id: 'P10006', name: '蓝月亮 深层洁净洗衣液', image: '/products/detergent.png', barcode: '6902022135314', category: '家庭清洁', brand: '蓝月亮', spec: '3kg/瓶', purchasePrice: 32.5, retailPrice: 49.9, stock: 0, safetyStock: 10, unit: '瓶', source: 'AI 采集', updatedAt: '2026-10-18 15:36' },
-  { id: 'P10007', name: '乐事 原味薯片', image: '/products/chips.png', barcode: '6924743915756', category: '休闲零食', brand: '乐事', spec: '70g/袋', purchasePrice: 4.8, retailPrice: 7.5, stock: 96, safetyStock: 40, unit: '袋', source: '批量导入', updatedAt: '2026-10-18 10:02' },
-  { id: 'P10008', name: '奥利奥 原味夹心饼干', image: '/products/cookies.png', barcode: '6901668053893', category: '休闲零食', brand: '奥利奥', spec: '116g/盒', purchasePrice: 5.6, retailPrice: 8.9, stock: 23, safetyStock: 30, unit: '盒', source: '手动录入', updatedAt: '2026-10-17 19:48' },
-  { id: 'P10009', name: '蒙牛 纯牛奶 整箱', image: '/products/milk.png', barcode: '6923644266318', category: '乳品', brand: '蒙牛', spec: '250ml × 12 盒', purchasePrice: 38.0, retailPrice: 52.0, stock: 31, safetyStock: 15, unit: '箱', source: '手动录入', updatedAt: '2026-10-17 14:30' },
-  { id: 'P10010', name: '元气森林 白桃味苏打气泡水', image: '/products/sparkling.png', barcode: '6970399920415', category: '饮料冲调', brand: '元气森林', spec: '480ml/瓶', purchasePrice: 3.2, retailPrice: 5.5, stock: 128, safetyStock: 48, unit: '瓶', source: 'AI 采集', updatedAt: '2026-10-17 09:15' },
-  { id: 'P10011', name: '旺旺 雪饼', image: '/products/rice-cracker.png', barcode: '6920658211152', category: '休闲零食', brand: '旺旺', spec: '84g/袋', purchasePrice: 4.2, retailPrice: 6.8, stock: 7, safetyStock: 24, unit: '袋', source: '批量导入', updatedAt: '2026-10-16 17:44' },
-  { id: 'P10012', name: '立白 柠檬清新洗洁精', image: '/products/dish-soap.png', barcode: '6920174736078', category: '家庭清洁', brand: '立白', spec: '1kg/瓶', purchasePrice: 7.9, retailPrice: 11.9, stock: 54, safetyStock: 20, unit: '瓶', source: '手动录入', updatedAt: '2026-10-16 08:58' },
+  { id: 'P10001', name: '农夫山泉 饮用天然水', image: '/products/water.png', barcode: '6921168509256', category: '饮料冲调', brand: '农夫山泉', spec: '550ml/瓶', purchasePrice: 1.15, retailPrice: 2.0, memberPrice: 1.9, minPrice: 1.8, stock: 386, safetyStock: 120, unit: '瓶', supplier: '康达饮料经销', status: '在售', source: '手动录入', updatedAt: '2026-10-20 09:12' },
+  { id: 'P10002', name: '可口可乐 汽水 罐装', image: '/products/cola.png', barcode: '6954767410388', category: '饮料冲调', brand: '可口可乐', spec: '330ml/罐', purchasePrice: 1.85, retailPrice: 3.0, memberPrice: 2.8, minPrice: 2.5, stock: 42, safetyStock: 60, unit: '罐', supplier: '康达饮料经销', status: '在售', source: '批量导入', updatedAt: '2026-10-19 18:40' },
+  { id: 'P10003', name: '康师傅 红烧牛肉面', image: '/products/noodle-bag.png', barcode: '6900873000258', category: '方便速食', brand: '康师傅', spec: '103g/袋', purchasePrice: 2.1, retailPrice: 3.5, memberPrice: 3.3, minPrice: 3.0, stock: 215, safetyStock: 80, unit: '袋', supplier: '杭州华润食品批发', status: '在售', source: '手动录入', updatedAt: '2026-10-19 16:05' },
+  { id: 'P10004', name: '统一 老坛酸菜牛肉面 桶装', image: '/products/noodle-cup.png', barcode: '6925303721367', category: '方便速食', brand: '统一', spec: '121g/桶', purchasePrice: 3.3, retailPrice: 5.0, memberPrice: 4.8, minPrice: 4.5, stock: 18, safetyStock: 40, unit: '桶', supplier: '杭州华润食品批发', status: '在售', source: 'AI 采集', updatedAt: '2026-10-19 11:22' },
+  { id: 'P10005', name: '维达 超韧抽纸 3 层', image: '/products/tissue.png', barcode: '6901236341285', category: '日用百货', brand: '维达', spec: '100 抽 × 3 包', purchasePrice: 8.6, retailPrice: 12.9, memberPrice: 12.5, minPrice: 11.5, stock: 64, safetyStock: 30, unit: '提', supplier: '佳旺日化供应链', status: '在售', source: '手动录入', updatedAt: '2026-10-18 20:10' },
+  { id: 'P10006', name: '蓝月亮 深层洁净洗衣液', image: '/products/detergent.png', barcode: '6902022135314', category: '家庭清洁', brand: '蓝月亮', spec: '3kg/瓶', purchasePrice: 32.5, retailPrice: 49.9, memberPrice: 47.9, minPrice: 45.0, stock: 0, safetyStock: 10, unit: '瓶', supplier: '佳旺日化供应链', status: '在售', source: 'AI 采集', updatedAt: '2026-10-18 15:36' },
+  { id: 'P10007', name: '乐事 原味薯片', image: '/products/chips.png', barcode: '6924743915756', category: '休闲零食', brand: '乐事', spec: '70g/袋', purchasePrice: 4.8, retailPrice: 7.5, memberPrice: 7.2, minPrice: 6.5, stock: 96, safetyStock: 40, unit: '袋', supplier: '杭州华润食品批发', status: '在售', source: '批量导入', updatedAt: '2026-10-18 10:02' },
+  { id: 'P10008', name: '奥利奥 原味夹心饼干', image: '/products/cookies.png', barcode: '6901668053893', category: '休闲零食', brand: '奥利奥', spec: '116g/盒', purchasePrice: 5.6, retailPrice: 8.9, memberPrice: 8.5, minPrice: 8.0, stock: 23, safetyStock: 30, unit: '盒', supplier: '杭州华润食品批发', status: '在售', source: '手动录入', updatedAt: '2026-10-17 19:48' },
+  { id: 'P10009', name: '蒙牛 纯牛奶 整箱', image: '/products/milk.png', barcode: '6923644266318', category: '乳品', brand: '蒙牛', spec: '250ml × 12 盒', purchasePrice: 38.0, retailPrice: 52.0, memberPrice: 50.0, minPrice: 48.0, stock: 31, safetyStock: 15, unit: '箱', supplier: '鲜丰乳品供应', status: '在售', source: '手动录入', updatedAt: '2026-10-17 14:30' },
+  { id: 'P10010', name: '元气森林 白桃味苏打气泡水', image: '/products/sparkling.png', barcode: '6970399920415', category: '饮料冲调', brand: '元气森林', spec: '480ml/瓶', purchasePrice: 3.2, retailPrice: 5.5, memberPrice: 5.3, minPrice: 5.0, stock: 128, safetyStock: 48, unit: '瓶', supplier: '康达饮料经销', status: '在售', source: 'AI 采集', updatedAt: '2026-10-17 09:15' },
+  { id: 'P10011', name: '旺旺 雪饼', image: '/products/rice-cracker.png', barcode: '6920658211152', category: '休闲零食', brand: '旺旺', spec: '84g/袋', purchasePrice: 4.2, retailPrice: 6.8, memberPrice: 6.5, minPrice: 6.0, stock: 7, safetyStock: 24, unit: '袋', supplier: '杭州华润食品批发', status: '在售', source: '批量导入', updatedAt: '2026-10-16 17:44' },
+  { id: 'P10012', name: '立白 柠檬清新洗洁精', image: '/products/dish-soap.png', barcode: '6920174736078', category: '家庭清洁', brand: '立白', spec: '1kg/瓶', purchasePrice: 7.9, retailPrice: 11.9, memberPrice: 11.5, minPrice: 11.0, stock: 54, safetyStock: 20, unit: '瓶', supplier: '佳旺日化供应链', status: '停售', source: '手动录入', updatedAt: '2026-10-16 08:58' },
 ]
 
 /* ---------------- AI 采集任务 ---------------- */
@@ -156,7 +166,7 @@ export const todayStats = {
 export const aiInsights = [
   { id: 'i1', level: '补货', title: '蓝月亮洗衣液已缺货 1 天', detail: '近 7 日日均销售 3.2 瓶，建议补货 24 瓶，可覆盖约 7 天销售。', action: '生成采购单' },
   { id: 'i2', level: '定价', title: '可口可乐罐装周末销量提升 38%', detail: '周五至周日晚间时段需求集中，建议与薯片组合陈列，并保持现价。', action: '查看分析' },
-  { id: 'i3', level: '滞销', title: '3 款日化商品 30 天未动销', detail: '占用库存金额约 ¥ 1,286，建议调整陈列位置或设置限时促销。', action: '查看商品' },
+  { id: 'i3', level: '滞销', title: '2 款日化商品 30 天未动销', detail: '占用库存金额约 ¥ 977，建议调整陈列位置或设置限时促销。', action: '查看商品' },
 ]
 
 export const notifications = [
@@ -164,3 +174,316 @@ export const notifications = [
   { id: 'n2', title: '库存预警', desc: '旺旺雪饼库存仅剩 7 袋，低于安全库存', time: '32 分钟前', unread: true },
   { id: 'n3', title: '采购单已签收', desc: '采购单 PO20261019 已由供应商确认发货', time: '今天 08:40', unread: false },
 ]
+
+/* ---------------- 采购与入库 ---------------- */
+
+export type PurchaseStatus = '草稿' | '待确认' | '已下单' | '部分入库' | '已入库' | '已取消'
+
+export type PurchaseItem = {
+  productId: string
+  name: string
+  spec: string | null
+  unit: string
+  quantity: number
+  received: number
+  price: number
+}
+
+export type PurchaseOrder = {
+  id: string
+  supplier: string
+  status: PurchaseStatus
+  expectedAt: string
+  createdAt: string
+  operator: string
+  items: PurchaseItem[]
+}
+
+export const initialPurchaseOrders: PurchaseOrder[] = [
+  {
+    id: 'PO20261020001',
+    supplier: '佳旺日化供应链',
+    status: '已下单',
+    expectedAt: '2026-10-22',
+    createdAt: '2026-10-20 09:20',
+    operator: '王店长',
+    items: [{ productId: 'P10006', name: '蓝月亮 深层洁净洗衣液', spec: '3kg/瓶', unit: '瓶', quantity: 24, received: 0, price: 32.5 }],
+  },
+  {
+    id: 'PO20261019002',
+    supplier: '康达饮料经销',
+    status: '部分入库',
+    expectedAt: '2026-10-20',
+    createdAt: '2026-10-19 15:02',
+    operator: '李晓',
+    items: [
+      { productId: 'P10002', name: '可口可乐 汽水 罐装', spec: '330ml/罐', unit: '罐', quantity: 78, received: 48, price: 1.85 },
+      { productId: 'P10010', name: '元气森林 白桃味苏打气泡水', spec: '480ml/瓶', unit: '瓶', quantity: 48, received: 48, price: 3.2 },
+    ],
+  },
+  {
+    id: 'PO20261018001',
+    supplier: '杭州华润食品批发',
+    status: '已入库',
+    expectedAt: '2026-10-18',
+    createdAt: '2026-10-17 11:40',
+    operator: '王店长',
+    items: [
+      { productId: 'P10003', name: '康师傅 红烧牛肉面', spec: '103g/袋', unit: '袋', quantity: 120, received: 120, price: 2.1 },
+      { productId: 'P10011', name: '旺旺 雪饼', spec: '84g/袋', unit: '袋', quantity: 60, received: 60, price: 4.2 },
+    ],
+  },
+  {
+    id: 'PO20261017003',
+    supplier: '鲜丰乳品供应',
+    status: '已取消',
+    expectedAt: '2026-10-19',
+    createdAt: '2026-10-17 09:05',
+    operator: '李晓',
+    items: [{ productId: 'P10009', name: '蒙牛 纯牛奶 整箱', spec: '250ml × 12 盒', unit: '箱', quantity: 20, received: 0, price: 38.0 }],
+  },
+]
+
+export type StockInStatus = '待收货' | '部分入库' | '已入库'
+
+export type StockInRecord = {
+  id: string
+  orderId: string | null
+  supplier: string
+  status: StockInStatus
+  arrivedAt: string
+  operator: string
+  items: PurchaseItem[]
+}
+
+export const initialStockInRecords: StockInRecord[] = [
+  {
+    id: 'SI20261020001',
+    orderId: 'PO20261019002',
+    supplier: '康达饮料经销',
+    status: '部分入库',
+    arrivedAt: '2026-10-20 08:35',
+    operator: '李晓',
+    items: [
+      { productId: 'P10002', name: '可口可乐 汽水 罐装', spec: '330ml/罐', unit: '罐', quantity: 78, received: 48, price: 1.85 },
+      { productId: 'P10010', name: '元气森林 白桃味苏打气泡水', spec: '480ml/瓶', unit: '瓶', quantity: 48, received: 48, price: 3.2 },
+    ],
+  },
+  {
+    id: 'SI20261018001',
+    orderId: 'PO20261018001',
+    supplier: '杭州华润食品批发',
+    status: '已入库',
+    arrivedAt: '2026-10-18 10:12',
+    operator: '王店长',
+    items: [
+      { productId: 'P10003', name: '康师傅 红烧牛肉面', spec: '103g/袋', unit: '袋', quantity: 120, received: 120, price: 2.1 },
+      { productId: 'P10011', name: '旺旺 雪饼', spec: '84g/袋', unit: '袋', quantity: 60, received: 60, price: 4.2 },
+    ],
+  },
+]
+
+/** 库存调整类型：入库补录 / 出库 / 报损 / 盘盈亏 */
+export type StockAdjustType = '入库补录' | '出库' | '报损' | '盘盈亏'
+
+export const purchaseStatusTone: Record<PurchaseStatus, 'neutral' | 'info' | 'warning' | 'success' | 'danger' | 'brand'> = {
+  草稿: 'neutral',
+  待确认: 'warning',
+  已下单: 'info',
+  部分入库: 'brand',
+  已入库: 'success',
+  已取消: 'danger',
+}
+
+export const stockInStatusTone: Record<StockInStatus, 'neutral' | 'info' | 'brand' | 'success'> = {
+  待收货: 'neutral',
+  部分入库: 'brand',
+  已入库: 'success',
+}
+
+/** 某商品最近一次入库时间 */
+export function lastInboundAt(records: StockInRecord[], productId: string) {
+  let latest: string | null = null
+  for (const r of records) {
+    if (r.items.some((i) => i.productId === productId) && (!latest || r.arrivedAt > latest)) latest = r.arrivedAt
+  }
+  return latest
+}
+
+/* ---------------- AI 经营助手 ---------------- */
+
+export type AssistantTable = {
+  caption: string
+  columns: string[]
+  rows: (string | number)[][]
+  /** 需要右对齐的列下标 */
+  alignRight?: number[]
+}
+
+export type AssistantTopic = {
+  id: string
+  title: string
+  hint: string
+  question: string
+  summary: string
+  table: AssistantTable
+  /** 数据来源与统计区间 */
+  basis: string
+  /** 计算口径 */
+  note: string
+  actions: { label: string; href?: string; toast?: string }[]
+  insufficient?: boolean
+}
+
+export const assistantTopics: AssistantTopic[] = [
+  {
+    id: 'today',
+    title: '今日经营情况',
+    hint: '销售额、订单与毛利概览',
+    question: '今天的经营情况怎么样？',
+    summary: '今日销售额 ¥ 8,426.50，环比昨日同时段 +6.8%；毛利额 ¥ 2,068.30，毛利率 24.5%。成交 312 笔，客单价 ¥ 27.00。当前 5 个商品处于库存预警状态，其中 1 个已缺货。',
+    table: {
+      caption: '今日经营指标（截至 10:30）',
+      columns: ['指标', '数值', '环比'],
+      rows: [
+        ['销售额', '¥ 8,426.50', '+6.8%'],
+        ['订单数量', '312 笔', '+4.2%'],
+        ['毛利额', '¥ 2,068.30', '+8.1%'],
+        ['客单价', '¥ 27.00', '持平'],
+        ['库存预警', '5 个商品', '较昨日 +1'],
+      ],
+      alignRight: [1, 2],
+    },
+    basis: '数据来源：门店 POS 销售流水（演示数据）· 统计区间：2026-10-20 00:00–10:30 · 对比区间：2026-10-19 同时段',
+    note: '销售口径含折扣后实收金额，不含退款；毛利额＝销售额－商品进货成本。',
+    actions: [{ label: '查看经营报表', href: '/reports' }],
+  },
+  {
+    id: 'sales',
+    title: '商品销售分析',
+    hint: '按分类与单品看销售结构',
+    question: '最近哪些饮料卖得比较快？',
+    summary: '饮料冲调类今日销售 ¥ 2,864，占门店销售额 34.0%，为第一大品类；其中元气森林白桃味苏打气泡水、农夫山泉饮用天然水位列单品销量前二。',
+    table: {
+      caption: '今日分类销售额与占比',
+      columns: ['商品分类', '销售额', '占比'],
+      rows: [
+        ['饮料冲调', '¥ 2,864.00', '34.0%'],
+        ['休闲零食', '¥ 1,852.00', '22.0%'],
+        ['方便速食', '¥ 1,236.00', '14.7%'],
+        ['乳品', '¥ 984.00', '11.7%'],
+        ['日用百货', '¥ 726.00', '8.6%'],
+        ['家庭清洁', '¥ 512.00', '6.1%'],
+        ['粮油调味', '¥ 252.00', '3.0%'],
+      ],
+      alignRight: [1, 2],
+    },
+    basis: '数据来源：门店 POS 销售流水（演示数据）· 统计区间：2026-10-20 00:00–10:30',
+    note: '占比＝分类销售额 ÷ 当日总销售额；演示数据仅覆盖当日流水，不含跨期对比。',
+    actions: [{ label: '查看经营报表', href: '/reports' }],
+  },
+  {
+    id: 'restock',
+    title: '库存补货建议',
+    hint: '低于安全库存的补货清单',
+    question: '哪些商品应该补货？',
+    summary: '5 个商品低于安全库存，建议按「补至 2 倍安全库存」生成采购单，预估采购金额 ¥ 1,508.30，其中蓝月亮洗衣液已缺货需优先处理。',
+    table: {
+      caption: '建议补货商品（按紧急度排序）',
+      columns: ['商品', '当前库存', '安全库存', '建议补货', '预估金额'],
+      rows: [
+        ['蓝月亮 深层洁净洗衣液 3kg/瓶', '0 瓶', '10 瓶', '24 瓶', '¥ 780.00'],
+        ['统一 老坛酸菜牛肉面 121g/桶', '18 桶', '40 桶', '62 桶', '¥ 204.60'],
+        ['旺旺 雪饼 84g/袋', '7 袋', '24 袋', '41 袋', '¥ 172.20'],
+        ['可口可乐 汽水 330ml/罐', '42 罐', '60 罐', '78 罐', '¥ 144.30'],
+        ['奥利奥 原味夹心饼干 116g/盒', '23 盒', '30 盒', '37 盒', '¥ 207.20'],
+      ],
+      alignRight: [1, 2, 3, 4],
+    },
+    basis: '数据来源：门店库存台账（演示数据）· 统计区间：库存快照 2026-10-20 10:30 · 补货公式参考近 7 日日均销量',
+    note: '建议补货量＝2 × 安全库存 － 当前库存（不足 1 件按 1 件计）；预估金额＝建议补货量 × 最近进货价。',
+    actions: [{ label: '前往采购管理', href: '/purchase' }, { label: '查看库存管理', href: '/inventory' }],
+  },
+  {
+    id: 'slow',
+    title: '滞销商品分析',
+    hint: '库存高但销售慢的商品',
+    question: '哪些商品库存高但销售慢？',
+    summary: '2 款日化商品近 30 天无动销记录，合计占用库存金额 ¥ 977.00，占总库存金额 6.4%，建议调整陈列或设置限时促销。',
+    table: {
+      caption: '滞销商品（近 30 天无动销）',
+      columns: ['商品', '当前库存', '库存金额', '最近动销', '建议'],
+      rows: [
+        ['维达 超韧抽纸 3 层 100 抽 × 3 包', '64 提', '¥ 550.40', '30 天前', '调整至主通道端架'],
+        ['立白 柠檬清新洗洁精 1kg/瓶', '54 瓶', '¥ 426.60', '25 天前', '限时 9 折或组合销售'],
+      ],
+      alignRight: [1, 2, 3],
+    },
+    basis: '数据来源：门店 POS 销售流水 + 库存台账（演示数据）· 统计区间：2026-09-20–2026-10-20',
+    note: '滞销口径＝近 30 天销量为 0 且库存金额 ≥ ¥ 200；库存金额＝当前库存 × 最近进货价。',
+    actions: [{ label: '查看相关商品', href: '/products?category=家庭清洁' }],
+  },
+  {
+    id: 'pricing',
+    title: '商品定价建议',
+    hint: '毛利率偏低或偏高的商品',
+    question: '哪些商品的定价需要调整？',
+    summary: '3 款商品毛利率偏离品类常见区间（30%–35%），建议先复核进货价与竞品售价，确认后再调整零售价。调整需在价格管理中人工确认后生效。',
+    table: {
+      caption: '定价建议（按毛利率偏离度排序）',
+      columns: ['商品', '现零售价', '当前毛利率', '建议零售价', '依据'],
+      rows: [
+        ['蒙牛 纯牛奶 整箱', '¥ 52.00', '26.9%', '¥ 54.00', '低于乳品类均值 32%'],
+        ['统一 老坛酸菜牛肉面 桶装', '¥ 5.00', '34.0%', '¥ 5.50', '缺货且动销良好，有上调空间'],
+        ['维达 超韧抽纸 3 层', '¥ 12.90', '33.3%', '¥ 12.90', '与同类持平，建议维持'],
+      ],
+      alignRight: [1, 2, 3],
+    },
+    basis: '数据来源：门店价格台账与销售流水（演示数据）· 统计区间：2026-10-01–2026-10-20',
+    note: '毛利率＝(零售价－进货价) ÷ 零售价；建议价参考同品类毛利率区间，仅作参考，系统不会自动改价。',
+    actions: [{ label: '前往价格管理', href: '/pricing' }],
+  },
+  {
+    id: 'purchase',
+    title: '采购建议',
+    hint: '按供应商汇总的建议采购',
+    question: '这次应该找哪些供应商进货？',
+    summary: '建议本次向 3 家供应商下单，共 5 个 SKU，预估采购金额 ¥ 1,508.30。其中佳旺日化供应链的蓝月亮洗衣液为缺货商品，建议优先下单。',
+    table: {
+      caption: '按供应商汇总的建议采购',
+      columns: ['供应商', '建议 SKU 数', '预估金额', '优先级'],
+      rows: [
+        ['佳旺日化供应链', '1', '¥ 780.00', '高（含缺货商品）'],
+        ['杭州华润食品批发', '3', '¥ 584.00', '中'],
+        ['康达饮料经销', '1', '¥ 144.30', '中'],
+      ],
+      alignRight: [1, 2],
+    },
+    basis: '数据来源：商品主档中的默认供应商 + 库存台账（演示数据）· 统计区间：库存快照 2026-10-20 10:30',
+    note: '按商品的默认供应商归集建议补货量；采购单价取最近进货价，实际价格以供应商报价为准。创建采购单需人工确认。',
+    actions: [{ label: '前往采购管理', href: '/purchase' }, { label: '查看供应商', href: '/suppliers' }],
+  },
+]
+
+/** 数据不足时的回答示例（不做经营结论） */
+export const assistantInsufficient: AssistantTopic = {
+  id: 'insufficient',
+  title: '数据不足示例',
+  hint: '门店数据不足时的提示',
+  question: '上个季度的利润趋势如何？',
+  summary: '当前门店在系统中仅有 2026-10-07 起的销售流水，缺少 2026 年 7–9 月的完整数据，无法给出上个季度的利润趋势分析。建议先完成历史数据导入，再进行分析。',
+  table: {
+    caption: '数据覆盖情况',
+    columns: ['数据项', '可用区间', '状态'],
+    rows: [
+      ['销售流水', '2026-10-07 起', '部分可用'],
+      ['进货成本', '2026-10-18 起', '不足'],
+      ['库存快照', '2026-10-20 单日', '不足'],
+    ],
+  },
+  basis: '数据来源：系统数据完整性检查（演示数据）',
+  note: '数据覆盖不足时不做推断，不虚构经营结论；可通过「数据导入导出」补充历史数据。',
+  actions: [{ label: '前往数据导入导出', href: '/settings' }],
+  insufficient: true,
+}
+

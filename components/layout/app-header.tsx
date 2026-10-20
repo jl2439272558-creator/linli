@@ -1,8 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Bell, Check, ChevronDown, CircleHelp, LogOut, MapPin, Search, Settings, Store, UserRound } from 'lucide-react'
+import { Bell, Check, ChevronDown, CircleHelp, LogOut, MapPin, Search, Settings, Sparkles, Store, UserRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -107,6 +108,16 @@ export function AppHeader() {
       </form>
 
       <div className="ml-auto flex items-center gap-1">
+        <Button
+          variant="outline"
+          className="h-9 gap-1.5 border-ai/30 px-3 text-ai hover:bg-ai-soft hover:text-ai"
+          render={<Link href="/ai-assistant" />}
+          nativeButton={false}
+        >
+          <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
+          AI 助手
+        </Button>
+
         <Button
           variant="ghost"
           size="icon-lg"

@@ -57,9 +57,9 @@ export const navGroups: NavGroup[] = [
   {
     label: '库存采购',
     items: [
-      { title: '库存管理', href: '/inventory', icon: Boxes },
-      { title: '入库管理', href: '/stock-in', icon: PackagePlus },
-      { title: '采购管理', href: '/purchase', icon: ShoppingCart },
+      { title: '库存管理', href: '/inventory', icon: Boxes, ready: true },
+      { title: '入库管理', href: '/stock-in', icon: PackagePlus, ready: true },
+      { title: '采购管理', href: '/purchase', icon: ShoppingCart, ready: true },
       { title: '库存预警', href: '/stock-alerts', icon: TriangleAlert },
       { title: '供应商管理', href: '/suppliers', icon: Truck },
     ],
@@ -67,7 +67,7 @@ export const navGroups: NavGroup[] = [
   {
     label: '销售收银',
     items: [
-      { title: '收银管理', href: '/cashier', icon: WalletCards },
+      { title: '收银管理', href: '/cashier', icon: WalletCards, ready: true },
       { title: '销售订单', href: '/orders', icon: ReceiptText },
       { title: '退货退款', href: '/refunds', icon: Undo2 },
     ],
@@ -82,7 +82,7 @@ export const navGroups: NavGroup[] = [
   {
     label: 'AI 助手',
     items: [
-      { title: 'AI 经营助手', href: '/ai-assistant', icon: Bot },
+      { title: 'AI 经营助手', href: '/ai-assistant', icon: Bot, ready: true },
       { title: 'AI 任务记录', href: '/ai-tasks', icon: ListChecks },
     ],
   },
