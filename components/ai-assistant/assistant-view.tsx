@@ -81,8 +81,8 @@ export function AssistantView() {
         description="基于门店经营数据回答问题，结论附带数据来源与统计口径"
       />
 
-      <div className="grid grid-cols-4 gap-4">
-        <div className="flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-4">
+        <div className="flex flex-col gap-3 md:gap-4">
           <SectionCard
             title="快捷分析主题"
             description="点击即可提问"
@@ -93,9 +93,9 @@ export function AssistantView() {
             }
             bodyClassName="p-3"
           >
-            <ul className="flex flex-col gap-1">
+            <ul className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin md:flex-col md:gap-1 md:overflow-visible md:pb-0">
               {assistantTopics.map((t) => (
-                <li key={t.id}>
+                <li key={t.id} className="w-60 shrink-0 md:w-auto md:shrink">
                   <button
                     type="button"
                     onClick={() => ask(t.question)}
@@ -113,7 +113,7 @@ export function AssistantView() {
                   </button>
                 </li>
               ))}
-              <li>
+              <li className="w-60 shrink-0 md:w-auto md:shrink">
                 <button
                   type="button"
                   onClick={() => ask(assistantInsufficient.question)}
@@ -137,8 +137,8 @@ export function AssistantView() {
           </SectionCard>
         </div>
 
-        <div className="col-span-3 flex flex-col rounded-xl border border-border bg-card">
-          <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-5 py-3">
+        <div className="flex flex-col rounded-xl border border-border bg-card md:col-span-3">
+          <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 py-3 md:px-5">
             <div className="flex items-center gap-2.5">
               <span className="flex size-8 items-center justify-center rounded-lg bg-ai-soft text-ai">
                 <Bot className="size-4" strokeWidth={1.75} aria-hidden="true" />
@@ -151,7 +151,7 @@ export function AssistantView() {
             <StatusPill />
           </header>
 
-          <div className="flex max-h-[520px] min-h-[420px] flex-1 flex-col gap-4 overflow-y-auto p-5 scrollbar-thin">
+          <div className="flex max-h-[520px] min-h-[360px] flex-1 flex-col gap-4 overflow-y-auto p-4 scrollbar-thin md:min-h-[420px] md:p-5">
             {messages.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
                 <span className="flex size-11 items-center justify-center rounded-full bg-ai-soft text-ai">
@@ -202,7 +202,7 @@ export function AssistantView() {
             <div ref={endRef} />
           </div>
 
-          <div className="border-t border-border px-5 py-4">
+          <div className="border-t border-border px-4 py-4 md:px-5">
             <form
               className="flex items-center gap-2"
               onSubmit={(e) => {
@@ -235,7 +235,7 @@ export function AssistantView() {
 
 function StatusPill() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">
+    <span className="hidden items-center gap-1.5 whitespace-nowrap rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground sm:inline-flex">
       <ShieldCheck className="size-3.5 text-primary" aria-hidden="true" />
       仅分析建议 · 不直接改动业务数据
     </span>

@@ -41,7 +41,7 @@ export const navGroups: NavGroup[] = [
     label: '经营总览',
     items: [
       { title: '经营工作台', href: '/', icon: LayoutDashboard, ready: true },
-      { title: '经营报表', href: '/reports', icon: FileBarChart },
+      { title: '经营报表', href: '/reports', icon: FileBarChart, ready: true },
     ],
   },
   {
@@ -49,9 +49,9 @@ export const navGroups: NavGroup[] = [
     items: [
       { title: '商品管理', href: '/products', icon: Package, ready: true },
       { title: 'AI 商品采集', href: '/ai-collect', icon: ScanLine, ready: true, badge: 'AI' },
-      { title: '商品分类', href: '/categories', icon: FolderTree },
-      { title: '品牌管理', href: '/brands', icon: Award },
-      { title: '价格管理', href: '/pricing', icon: Tag },
+      { title: '商品分类', href: '/categories', icon: FolderTree, ready: true },
+      { title: '品牌管理', href: '/brands', icon: Award, ready: true },
+      { title: '价格管理', href: '/pricing', icon: Tag, ready: true },
     ],
   },
   {
@@ -60,37 +60,37 @@ export const navGroups: NavGroup[] = [
       { title: '库存管理', href: '/inventory', icon: Boxes, ready: true },
       { title: '入库管理', href: '/stock-in', icon: PackagePlus, ready: true },
       { title: '采购管理', href: '/purchase', icon: ShoppingCart, ready: true },
-      { title: '库存预警', href: '/stock-alerts', icon: TriangleAlert },
-      { title: '供应商管理', href: '/suppliers', icon: Truck },
+      { title: '库存预警', href: '/stock-alerts', icon: TriangleAlert, ready: true },
+      { title: '供应商管理', href: '/suppliers', icon: Truck, ready: true },
     ],
   },
   {
     label: '销售收银',
     items: [
       { title: '收银管理', href: '/cashier', icon: WalletCards, ready: true },
-      { title: '销售订单', href: '/orders', icon: ReceiptText },
-      { title: '退货退款', href: '/refunds', icon: Undo2 },
+      { title: '销售订单', href: '/orders', icon: ReceiptText, ready: true },
+      { title: '退货退款', href: '/refunds', icon: Undo2, ready: true },
     ],
   },
   {
     label: '门店管理',
     items: [
-      { title: '门店列表', href: '/stores', icon: Store },
-      { title: '员工与权限', href: '/staff', icon: Users },
+      { title: '门店列表', href: '/stores', icon: Store, ready: true },
+      { title: '员工与权限', href: '/staff', icon: Users, ready: true },
     ],
   },
   {
     label: 'AI 助手',
     items: [
       { title: 'AI 经营助手', href: '/ai-assistant', icon: Bot, ready: true },
-      { title: 'AI 任务记录', href: '/ai-tasks', icon: ListChecks },
+      { title: 'AI 任务记录', href: '/ai-tasks', icon: ListChecks, ready: true },
     ],
   },
   {
     label: '系统设置',
     items: [
-      { title: '基础设置', href: '/settings', icon: Settings },
-      { title: '账号与订阅', href: '/subscription', icon: CreditCard },
+      { title: '基础设置', href: '/settings', icon: Settings, ready: true },
+      { title: '账号与订阅', href: '/subscription', icon: CreditCard, ready: true },
     ],
   },
 ]

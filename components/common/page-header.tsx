@@ -16,7 +16,7 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <div className="mb-5 flex items-end justify-between gap-6">
+    <div className="mb-4 flex flex-col items-start gap-3 md:mb-5 md:flex-row md:items-end md:gap-6">
       <div className="min-w-0">
         {breadcrumbs && (
           <nav aria-label="面包屑" className="mb-1.5">
@@ -39,7 +39,7 @@ export function PageHeader({
         <h1 className="text-xl font-semibold tracking-tight text-foreground text-balance">{title}</h1>
         {description && <p className="mt-1 text-[13px] text-muted-foreground text-pretty">{description}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex w-full shrink-0 flex-wrap items-center gap-2 md:w-auto">{actions}</div>}
     </div>
   )
 }

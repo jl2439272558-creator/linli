@@ -11,13 +11,13 @@ export default function DashboardPage() {
   return (
     <>
       <PageHeader title="经营工作台" description="2026 年 10 月 20 日 星期二 · 数据截至 10:30" actions={<DashboardActions />} />
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 md:gap-4">
         <KpiCards />
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
           <SalesTrendChart />
           <CategoryChart />
         </div>
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
           <StockAlertList />
           <QuickActions />
           <AiInsights />

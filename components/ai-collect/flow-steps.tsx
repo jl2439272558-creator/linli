@@ -11,13 +11,13 @@ const steps: { title: string; desc: string; icon: LucideIcon }[] = [
 /** current: 0-based index of the step in progress; steps before it are complete */
 export function FlowSteps({ current }: { current: number }) {
   return (
-    <ol aria-label="采集流程" className="grid grid-cols-4 rounded-xl border border-border bg-card px-6 py-4">
+    <ol aria-label="采集流程" className="flex overflow-x-auto rounded-xl border border-border bg-card px-4 py-4 scrollbar-thin md:grid md:grid-cols-4 md:overflow-visible md:px-6">
       {steps.map((s, i) => {
         const done = i < current
         const active = i === current
         const Icon = s.icon
         return (
-          <li key={s.title} aria-current={active ? 'step' : undefined} className="relative flex items-center gap-3">
+          <li key={s.title} aria-current={active ? 'step' : undefined} className="relative flex min-w-[150px] items-center gap-3 md:min-w-0">
             <span
               className={cn(
                 'relative z-10 flex size-9 shrink-0 items-center justify-center rounded-full border text-sm transition-colors',

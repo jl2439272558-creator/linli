@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
-import { ArrowRight, CircleHelp, ClipboardCheck, Loader2, Play, RefreshCw, ScanLine, Sparkles, Store as StoreIcon, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { ArrowRight, CircleHelp, ClipboardCheck, Loader2, Play, RefreshCw, ScanLine, Sparkles, Store as StoreIcon, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Progress, ProgressIndicator, ProgressTrack } from '@/components/ui/progress'
@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageHeader } from '@/components/common/page-header'
 import { SectionCard } from '@/components/common/section-card'
+import { StatCards, type StatItem } from '@/components/common/stat-cards'
 import { StatusBadge, type Tone } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
@@ -94,7 +95,7 @@ export function CollectView() {
     setPage(1)
   }
 
-  const stats: { label: string; value: string; icon: LucideIcon; tone: string }[] = [
+  const stats: StatItem[] = [
     { label: '识别成功率', value: `${successRate}%`, icon: Sparkles, tone: 'bg-ai-soft text-ai' },
     { label: '待审核商品', value: `${pendingReview} 个`, icon: ClipboardCheck, tone: 'bg-warning-soft text-warning' },
     { label: '本次任务数量', value: `${todayCount} 个`, icon: ScanLine, tone: 'bg-brand-soft text-primary' },
@@ -138,18 +139,18 @@ export function CollectView() {
           />
         </section>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
           <SectionCard
             title="AI 识别操作区"
             description="设置本次识别的目标门店与字段范围"
-            className="col-span-2"
+            className="md:col-span-2"
             icon={
               <span className="flex size-8 items-center justify-center rounded-lg bg-ai-soft text-ai">
                 <Sparkles className="size-4" strokeWidth={1.75} aria-hidden="true" />
               </span>
             }
           >
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="grid grid-cols-1 gap-x-4 gap-y-4 md:grid-cols-2">
               <ConfigField label="目标门店">
                 <Select
                   items={stores.map((s) => ({ value: s.id, label: s.name }))}
@@ -229,7 +230,7 @@ export function CollectView() {
               </ConfigField>
             </div>
 
-            <div className="mt-5 grid grid-cols-3 gap-3">
+            <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
               <ToggleRow label="识别商品规格" hint="从包装文字提取净含量" checked={recognizeSpec} onChange={setRecognizeSpec} />
               <ToggleRow label="识别品牌" hint="匹配品牌库中的品牌名" checked={recognizeBrand} onChange={setRecognizeBrand} />
               <ToggleRow label="尝试识别条码" hint="仅读取资料中真实存在的条码" checked={recognizeBarcode} onChange={setRecognizeBarcode} />
@@ -243,7 +244,7 @@ export function CollectView() {
               </span>
             </div>
 
-            <div className="mt-4 flex items-center gap-3 border-t border-border pt-4">
+            <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
               <Button className="h-9" disabled={starting} onClick={start}>
                 {starting ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <Play data-icon="inline-start" />}
                 {starting ? '任务创建中…' : '开始识别'}
@@ -254,44 +255,27 @@ export function CollectView() {
             </div>
           </SectionCard>
 
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 gap-3">
-              {stats.map((s) => {
-                const Icon = s.icon
-                return (
-                  <div key={s.label} className="flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3.5">
-                    <span className={cn('flex size-10 items-center justify-center rounded-lg', s.tone)}>
-                      <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-                    </span>
-                    <span>
-                      <span className="block text-xs text-muted-foreground">{s.label}</span>
-                      <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-
-            <SectionCard title="任务状态说明" description="共 5 种状态" bodyClassName="flex flex-col gap-2.5">
-              {(
-                [
-                  ['等待处理', '任务已创建，等待开始识别'],
-                  ['识别中', 'AI 正在提取与整理字段，可离开本页'],
-                  ['待审核', '识别完成，需人工确认后入库'],
-                  ['已入库', '审核通过并已写入商品库'],
-                  ['处理失败', '资料格式或授权问题导致失败，可重新处理'],
-                ] as [TaskStatus, string][]
-              ).map(([status, desc]) => (
-                <div key={status} className="flex items-center gap-3">
-                  <StatusBadge tone={statusTone[status]} pulse={status === '识别中'}>
-                    {status}
-                  </StatusBadge>
-                  <span className="text-xs text-muted-foreground">{desc}</span>
-                </div>
-              ))}
-            </SectionCard>
-          </div>
+          <SectionCard title="任务状态说明" description="共 5 种状态" bodyClassName="flex flex-col gap-2.5">
+            {(
+              [
+                ['等待处理', '任务已创建，等待开始识别'],
+                ['识别中', 'AI 正在提取与整理字段，可离开本页'],
+                ['待审核', '识别完成，需人工确认后入库'],
+                ['已入库', '审核通过并已写入商品库'],
+                ['处理失败', '资料格式或授权问题导致失败，可重新处理'],
+              ] as [TaskStatus, string][]
+            ).map(([status, desc]) => (
+              <div key={status} className="flex items-center gap-3">
+                <StatusBadge tone={statusTone[status]} pulse={status === '识别中'}>
+                  {status}
+                </StatusBadge>
+                <span className="text-xs text-muted-foreground">{desc}</span>
+              </div>
+            ))}
+          </SectionCard>
         </div>
+
+        <StatCards items={stats} columns={3} />
 
         <section aria-label="采集任务列表" className="rounded-xl border border-border bg-card">
           <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-5 py-3">
@@ -305,7 +289,7 @@ export function CollectView() {
             </Button>
           </header>
 
-          <Table className="min-w-[1080px] text-[13px]">
+          <div className="overflow-x-auto"><Table className="min-w-[1080px] text-[13px]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
                 <TableHead className="pl-5">任务编号</TableHead>
@@ -398,7 +382,7 @@ export function CollectView() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </Table></div>
           <TablePagination total={tasks.length} page={current} pageSize={pageSize} onPageChange={setPage} />
 
           <div className="flex items-start gap-2.5 border-t border-border px-5 py-3.5 text-xs text-muted-foreground">

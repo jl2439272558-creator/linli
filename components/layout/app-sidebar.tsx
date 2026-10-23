@@ -8,14 +8,31 @@ import { brand } from '@/lib/brand'
 import { navGroups, resolveActiveHref } from '@/lib/nav'
 import { BrandLogo } from './brand-logo'
 
-export function AppSidebar() {
+export function AppSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
   const active = resolveActiveHref(pathname)
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[230px] flex-col border-r border-sidebar-border bg-sidebar">
+    <>
+      {/* 手机端抽屉遮罩：桌面端隐藏 */}
+      <div
+        aria-hidden={!mobileOpen}
+        onClick={onClose}
+        className={cn(
+          'fixed inset-0 z-40 bg-black/40 transition-opacity md:hidden',
+          mobileOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}
+      />
+      <aside
+        aria-label="主导航"
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-[264px] flex-col border-r border-sidebar-border bg-sidebar transition-transform duration-200 ease-out',
+          'md:z-30 md:w-[230px] md:translate-x-0',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        )}
+      >
       <div className="flex h-[60px] shrink-0 items-center border-b border-sidebar-border px-5">
-        <Link href="/" aria-label={`${brand.name} 首页`}>
+        <Link href="/" aria-label={`${brand.name} 首页`} onClick={onClose}>
           <BrandLogo />
         </Link>
       </div>
@@ -32,9 +49,10 @@ export function AppSidebar() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      onClick={onClose}
                       aria-current={isActive ? 'page' : undefined}
                       className={cn(
-                        'group relative flex h-9 items-center gap-2.5 rounded-md px-3 text-[13px] transition-colors',
+                        'group relative flex h-10 items-center gap-2.5 rounded-md px-3 text-[13px] transition-colors md:h-9',
                         isActive
                           ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
                           : 'text-sidebar-foreground hover:bg-muted hover:text-foreground',
@@ -64,6 +82,7 @@ export function AppSidebar() {
       <div className="shrink-0 border-t border-sidebar-border p-3">
         <Link
           href="/subscription"
+          onClick={onClose}
           className="flex items-center gap-3 rounded-lg bg-muted/70 px-3 py-2.5 transition-colors hover:bg-muted"
         >
           <div className="flex size-8 items-center justify-center rounded-md bg-background text-primary ring-1 ring-border">
@@ -79,6 +98,7 @@ export function AppSidebar() {
           </div>
         </Link>
       </div>
-    </aside>
+      </aside>
+    </>
   )
 }

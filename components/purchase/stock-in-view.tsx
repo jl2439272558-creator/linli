@@ -191,7 +191,7 @@ export function StockInView() {
           }
         >
           <div className="flex flex-wrap items-end gap-3">
-            <div className="w-80">
+            <div className="w-full sm:w-80">
               <label htmlFor="scan-input" className="mb-1.5 block text-xs text-muted-foreground">
                 扫描或输入商品条码
               </label>
@@ -217,7 +217,7 @@ export function StockInView() {
               <ScanLine data-icon="inline-start" />
               添加商品
             </Button>
-            <div className="w-72">
+            <div className="w-full sm:w-72">
               <p className="mb-1.5 text-xs text-muted-foreground">选择在途采购单</p>
               <Select
                 items={inTransit.map((o) => ({ value: o.id, label: `${o.id} · ${o.supplier}` }))}
@@ -271,7 +271,7 @@ export function StockInView() {
             </div>
           </header>
 
-          <Table className="min-w-[1080px] text-[13px]">
+          <div className="overflow-x-auto"><Table className="min-w-[1080px] text-[13px]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
                 <TableHead className="pl-5 min-w-56">商品信息</TableHead>
@@ -341,7 +341,7 @@ export function StockInView() {
                 ))
               )}
             </TableBody>
-          </Table>
+          </Table></div>
         </section>
 
         <section aria-label="入库记录" className="rounded-xl border border-border bg-card">
@@ -352,7 +352,7 @@ export function StockInView() {
             </div>
           </header>
 
-          <Table className="min-w-[960px] text-[13px]">
+          <div className="overflow-x-auto"><Table className="min-w-[960px] text-[13px]">
             <TableHeader>
               <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
                 <TableHead className="pl-5">入库单号</TableHead>
@@ -389,7 +389,7 @@ export function StockInView() {
                 </TableRow>
               ))}
             </TableBody>
-          </Table>
+          </Table></div>
         </section>
       </div>
 

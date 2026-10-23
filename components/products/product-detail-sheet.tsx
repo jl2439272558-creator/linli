@@ -26,7 +26,7 @@ export function ProductDetailSheet({
 
   return (
     <Sheet open={!!product} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[440px] gap-0 p-0 sm:max-w-[440px]">
+      <SheetContent className="w-full gap-0 p-0 sm:w-[440px] sm:max-w-[440px]">
         {product && (
           <>
             <SheetHeader className="border-b border-border px-6 py-4">

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, CircleHelp, ClipboardCheck, Crop, ImagePlus, Loader2, RefreshCw, SkipForward, Sparkles, Store, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Check, CircleHelp, ClipboardCheck, Crop, ImagePlus, Loader2, RefreshCw, SkipForward, Sparkles, Store, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/page-header'
 import { ProductThumb } from '@/components/common/product-thumb'
 import { SectionCard } from '@/components/common/section-card'
+import { StatCards, type StatItem } from '@/components/common/stat-cards'
 import { StatusBadge, type Tone } from '@/components/common/status-badge'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { categories, suppliers, type FieldOrigin, type ReviewItem, type ReviewStatus } from '@/lib/mock-data'
@@ -183,7 +184,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
     }, 900)
   }
 
-  const stats: { label: string; value: number; icon: LucideIcon; tone: string }[] = [
+  const stats: StatItem[] = [
     { label: '待审核', value: reviewItems.filter((r) => r.status === '待审核').length, icon: ClipboardCheck, tone: 'bg-ai-soft text-ai' },
     { label: '需补充', value: reviewItems.filter((r) => r.status === '需补充').length, icon: CircleHelp, tone: 'bg-warning-soft text-warning' },
     { label: '已确认', value: reviewItems.filter((r) => r.status === '已确认').length, icon: Check, tone: 'bg-success-soft text-success' },
@@ -210,24 +211,9 @@ export function ReviewView({ taskId }: { taskId?: string }) {
         }
       />
 
-      <div className="mb-4 grid grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} className="flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3.5">
-              <span className={cn('flex size-10 items-center justify-center rounded-lg', s.tone)}>
-                <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-xs text-muted-foreground">{s.label}</span>
-                <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      <StatCards items={stats} className="mb-4" />
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
         <section aria-label="待审核商品" className="flex flex-col rounded-xl border border-border bg-card">
           <header className="flex min-h-14 items-center justify-between gap-3 border-b border-border px-4 py-3">
             <h2 className="text-[15px] font-semibold text-foreground">识别结果列表</h2>
@@ -388,7 +374,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
                   <span className="ml-auto text-xs text-muted-foreground">来源资料：{active.sourceText}</span>
                 </div>
 
-                <Table className="text-[13px]">
+                <div className="overflow-x-auto"><Table className="text-[13px]">
                   <TableHeader>
                     <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
                       <TableHead>字段</TableHead>
@@ -461,7 +447,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
                         )
                       })}
                     </TableBody>
-                  </Table>
+                  </Table></div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg bg-muted/50 px-3.5 py-3 text-xs text-muted-foreground">
                   <span className="inline-flex items-center gap-1.5">
@@ -479,7 +465,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
                 </div>
               </div>
 
-              <div className="sticky bottom-0 mt-5 flex flex-wrap items-center gap-2 border-t border-border bg-background/95 px-5 py-3.5 backdrop-blur-sm">
+              <div className="sticky bottom-14 mt-5 flex flex-wrap items-center gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:bottom-0 md:px-5 md:py-3.5">
                 <p className="mr-auto text-xs text-muted-foreground">
                   入库后商品状态为「在售」，价格与库存可在商品管理中继续维护
                 </p>

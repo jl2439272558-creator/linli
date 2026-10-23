@@ -4,11 +4,12 @@ import { useMemo, useRef, useState } from 'react'
 import { Banknote, Minus, PackageX, Plus, Printer, ScanLine, ShoppingCart, Trash2, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { PageHeader } from '@/components/common/page-header'
 import { ProductThumb } from '@/components/common/product-thumb'
 import { useDemoStore } from '@/components/providers/demo-store'
-import { categories, getStockStatus, type Product } from '@/lib/mock-data'
+import { categories, getStockStatus, members, payMethods, type PayMethod, type Product } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -17,11 +18,13 @@ type CartLine = { productId: string; name: string; price: number; unit: string; 
 const MEMBER_RATE = 0.05
 
 export function CashierView() {
-  const { products, currentStore } = useDemoStore()
+  const { products, currentStore, addSaleOrder, adjustStock } = useDemoStore()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('全部')
   const [cart, setCart] = useState<CartLine[]>([])
   const [member, setMember] = useState(false)
+  const [memberId, setMemberId] = useState(members[0].id)
+  const [payMethod, setPayMethod] = useState<PayMethod>('微信支付')
   const [roundOff, setRoundOff] = useState(true)
   const [checking, setChecking] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -88,12 +91,25 @@ export function CashierView() {
       toast.info('购物清单为空', { description: '请先扫描或选择商品' })
       return
     }
+    const chosen = members.find((m) => m.id === memberId)
     setChecking(true)
     setTimeout(() => {
-      setChecking(false)
-      toast.success(`收款完成 ${formatMoney(total)}`, {
-        description: `${count} 件商品 · ${member ? '已享会员折扣' : '普通顾客'} · ${currentStore.name}`,
+      const order = addSaleOrder({
+        items: cart.map((l) => ({ productId: l.productId, name: l.name, unit: l.unit, price: l.price, quantity: l.qty })),
+        amount: subtotal,
+        discount: Math.round((subtotal - total) * 100) / 100,
+        paid: total,
+        payMethod,
+        cashier: '王店长',
+        memberName: member ? (chosen?.name ?? null) : null,
+        memberPhone: member ? (chosen?.phone ?? null) : null,
+        status: '已完成',
+        refunded: 0,
       })
+      // 结算后扣减库存，退货时在退货退款模块回滚
+      cart.forEach((l) => adjustStock(l.productId, -l.qty))
+      setChecking(false)
+      toast.success(`收款完成 ${formatMoney(total)}`, { description: `${order.id} · ${payMethod} · ${count} 件商品 · 库存已扣减` })
       toast.success('小票已发送至打印机', { description: '演示交互：未连接真实打印设备' })
       setCart([])
       setMember(false)
@@ -120,10 +136,10 @@ export function CashierView() {
         }
       />
 
-      <div className="grid grid-cols-3 gap-4">
-        <section aria-label="商品选择" className="col-span-2 flex flex-col rounded-xl border border-border bg-card">
-          <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-            <div className="relative w-80">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
+        <section aria-label="商品选择" className="flex flex-col rounded-xl border border-border bg-card md:col-span-2">
+          <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 md:gap-3 md:px-5">
+            <div className="relative w-full sm:w-80">
               <ScanLine className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
               <input
                 ref={inputRef}
@@ -168,7 +184,7 @@ export function CashierView() {
           {visible.length === 0 ? (
             <p className="py-20 text-center text-sm text-muted-foreground">没有找到匹配的在售商品</p>
           ) : (
-            <div className="grid max-h-[600px] grid-cols-4 gap-3 overflow-y-auto p-5 scrollbar-thin">
+            <div className="grid max-h-[420px] grid-cols-3 gap-2.5 overflow-y-auto p-3 scrollbar-thin md:max-h-[600px] md:grid-cols-4 md:gap-3 md:p-5">
               {visible.map((p) => {
                 const status = getStockStatus(p)
                 const out = status === '缺货'
@@ -195,8 +211,8 @@ export function CashierView() {
                     </div>
                     <span className="line-clamp-2 min-h-9 text-[13px] font-medium text-foreground">{p.name}</span>
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="font-semibold text-primary tabular-nums">{formatMoney(p.retailPrice)}</span>
-                      <span className="text-[11px] text-muted-foreground">{p.spec ?? '无规格'}</span>
+                      <span className="shrink-0 font-semibold text-primary tabular-nums">{formatMoney(p.retailPrice)}</span>
+                      <span className="min-w-0 truncate text-[11px] text-muted-foreground">{p.spec ?? '无规格'}</span>
                     </span>
                     {out && (
                       <span className="inline-flex items-center gap-1 text-[11px] text-danger">
@@ -212,7 +228,7 @@ export function CashierView() {
         </section>
 
         <div className="flex flex-col rounded-xl border border-border bg-card">
-          <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-5 py-3">
+          <header className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 py-3 md:px-5">
             <div>
               <h2 className="text-[15px] font-semibold text-foreground">本次购物清单</h2>
               <p className="mt-0.5 text-xs text-muted-foreground">共 {count} 件商品</p>
@@ -236,12 +252,12 @@ export function CashierView() {
             <div className="flex flex-1 flex-col items-center justify-center gap-2 py-20 text-center">
               <ShoppingCart className="size-8 text-muted-foreground/50" strokeWidth={1.5} aria-hidden="true" />
               <p className="text-sm text-foreground">购物清单为空</p>
-              <p className="text-xs text-muted-foreground">扫描条码或点击左侧商品加入清单</p>
+              <p className="text-xs text-muted-foreground">扫描条码或点击上方商品加入清单</p>
             </div>
           ) : (
-            <ul className="max-h-[360px] divide-y divide-border overflow-y-auto scrollbar-thin">
+            <ul className="divide-y divide-border md:max-h-[360px] md:overflow-y-auto scrollbar-thin">
               {cart.map((l) => (
-                <li key={l.productId} className="flex items-center gap-3 px-5 py-3">
+                <li key={l.productId} className="flex items-center gap-3 px-4 py-3 md:px-5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[13px] font-medium text-foreground">{l.name}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
@@ -276,27 +292,67 @@ export function CashierView() {
             </ul>
           )}
 
-          <div className="border-t border-border px-5 py-4">
+          <div className="sticky bottom-14 z-10 border-t border-border bg-card px-4 py-4 md:static md:bottom-auto md:z-auto md:px-5">
             <div className="flex flex-col gap-2 text-[13px]">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">商品金额</span>
                 <span className="tabular-nums">{formatMoney(subtotal)}</span>
               </div>
-              <label className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <UserRound className="size-3.5" aria-hidden="true" />
+              <label className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                  <UserRound className="size-3.5 shrink-0" aria-hidden="true" />
                   会员折扣（9.5 折）
                 </span>
                 <Switch checked={member} onCheckedChange={(v) => setMember(!!v)} aria-label="会员折扣" />
               </label>
+              {member && (
+                <Select
+                  items={members.map((m) => ({ value: m.id, label: `${m.name} · ${m.level}` }))}
+                  value={memberId}
+                  onValueChange={(v) => v && setMemberId(v as string)}
+                >
+                  <SelectTrigger className="h-8 w-full text-[13px]" aria-label="选择会员">
+                    <UserRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {`${m.name} · ${m.level} · ${m.points} 积分`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">优惠金额</span>
                 <span className="text-success tabular-nums">-{formatMoney(memberCut + (roundOff ? afterMember - rounded : 0))}</span>
               </div>
-              <label className="flex items-center justify-between">
-                <span className="text-muted-foreground">抹零（保留 1 位小数）</span>
+              <label className="flex items-center justify-between gap-2">
+                <span className="min-w-0 text-muted-foreground">抹零（保留 1 位小数）</span>
                 <Switch checked={roundOff} onCheckedChange={(v) => setRoundOff(!!v)} aria-label="抹零" />
               </label>
+            </div>
+
+            <div className="mt-3">
+              <p className="mb-1.5 text-xs text-muted-foreground">支付方式</p>
+              <div role="radiogroup" aria-label="支付方式" className="flex rounded-lg bg-muted p-0.5">
+                {payMethods.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    role="radio"
+                    aria-checked={payMethod === m}
+                    onClick={() => setPayMethod(m)}
+                    className={cn(
+                      'h-7 flex-1 rounded-md text-xs transition-colors',
+                      payMethod === m ? 'bg-background font-medium text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="mt-3 flex items-end justify-between border-t border-border pt-3">

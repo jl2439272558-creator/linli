@@ -124,7 +124,7 @@ function Form({ onDone }: { onDone: () => void }) {
         <div className="mb-2 flex items-center justify-between gap-3">
           <Label className="text-xs font-normal text-muted-foreground">采购商品</Label>
           <Select items={itemsOptions} value={pick} onValueChange={(v) => v && addRow(v as string)}>
-            <SelectTrigger className="h-8 w-64 text-[13px]">
+            <SelectTrigger className="h-8 w-full text-[13px] sm:w-64">
               <Plus className="size-3.5 text-muted-foreground" aria-hidden="true" />
               <SelectValue placeholder="添加商品" />
             </SelectTrigger>

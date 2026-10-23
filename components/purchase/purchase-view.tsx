@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { FilterSelect } from '@/components/common/filter-select'
 import { PageHeader } from '@/components/common/page-header'
+import { StatCards } from '@/components/common/stat-cards'
 import { StatusBadge } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
@@ -89,26 +90,11 @@ export function PurchaseView() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} className="flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3.5">
-              <span className={cn('flex size-10 items-center justify-center rounded-lg', s.tone)}>
-                <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-xs text-muted-foreground">{s.label}</span>
-                <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      <StatCards items={stats} className="mb-4" />
 
       <section aria-label="采购单列表" className="rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-          <div className="relative w-64">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 md:gap-3 md:px-5">
+          <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               aria-label="搜索采购单号或供应商"
@@ -134,7 +120,7 @@ export function PurchaseView() {
           </Button>
         </div>
 
-        <Table className="min-w-[1080px] text-[13px]">
+        <div className="overflow-x-auto"><Table className="min-w-[1080px] text-[13px]">
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
               <TableHead className="pl-5">采购单号</TableHead>
@@ -229,7 +215,7 @@ export function PurchaseView() {
               })
             )}
           </TableBody>
-        </Table>
+        </Table></div>
 
         <TablePagination
           total={filtered.length}

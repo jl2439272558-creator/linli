@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { Boxes, Download, MoreHorizontal, PackagePlus, PackageX, RotateCcw, Search, SlidersHorizontal, TriangleAlert, X, type LucideIcon } from 'lucide-react'
+import { Boxes, Download, MoreHorizontal, PackagePlus, PackageX, RotateCcw, Search, SlidersHorizontal, TriangleAlert, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { FilterSelect } from '@/components/common/filter-select'
 import { PageHeader } from '@/components/common/page-header'
 import { ProductThumb } from '@/components/common/product-thumb'
+import { StatCards, type StatItem } from '@/components/common/stat-cards'
 import { StatusBadge } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
@@ -64,7 +65,7 @@ export function InventoryView() {
     setPage(1)
   }
 
-  const stats: { label: string; value: string; icon: LucideIcon; tone: string }[] = [
+  const stats: StatItem[] = [
     { label: '商品总库存数', value: `${totalStock.toLocaleString('zh-CN')} 件`, icon: Boxes, tone: 'bg-brand-soft text-primary' },
     { label: '低库存商品数', value: `${lowCount} 个`, icon: TriangleAlert, tone: 'bg-warning-soft text-warning' },
     { label: '缺货商品数', value: `${outCount} 个`, icon: PackageX, tone: 'bg-danger-soft text-danger' },
@@ -95,26 +96,11 @@ export function InventoryView() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} className="flex items-center gap-3.5 rounded-xl border border-border bg-card px-4 py-3.5">
-              <span className={cn('flex size-10 items-center justify-center rounded-lg', s.tone)}>
-                <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-xs text-muted-foreground">{s.label}</span>
-                <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      <StatCards items={stats} className="mb-4" />
 
       <section aria-label="库存列表" className="rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-          <div className="relative w-64">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 md:gap-3 md:px-5">
+          <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               aria-label="搜索商品名称或条码"
@@ -150,7 +136,7 @@ export function InventoryView() {
           </Button>
         </div>
 
-        <Table className="min-w-[1140px] text-[13px]">
+        <div className="overflow-x-auto"><Table className="min-w-[1140px] text-[13px]">
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
               <TableHead className="pl-5 min-w-56">商品信息</TableHead>
@@ -233,7 +219,7 @@ export function InventoryView() {
               })
             )}
           </TableBody>
-        </Table>
+        </Table></div>
 
         <TablePagination
           total={filtered.length}

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, ImagePlus, Loader2, ScanLine, Sparkles, Star, Trash2, TriangleAlert, X } from 'lucide-react'
+import { ArrowLeft, Check, ImagePlus, Loader2, ScanBarcode, ScanLine, Sparkles, Star, Trash2, TriangleAlert, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,6 +17,7 @@ import { brands, categories, getStockStatus, suppliers, units, type Product } fr
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { stockTone } from './stock-tone'
+import { BarcodeScanDialog, type BarcodeScanResult } from './barcode-scan-dialog'
 
 type FormState = {
   name: string
@@ -86,6 +87,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [aiLoading, setAiLoading] = useState(false)
   const [aiApplied, setAiApplied] = useState<string[]>([])
+  const [scanOpen, setScanOpen] = useState(false)
   // 编辑态下切换商品时同步表单
   const [prevId, setPrevId] = useState(id)
   if (id !== prevId) {
@@ -101,6 +103,33 @@ export function ProductFormPage({ productId }: { productId?: string }) {
     setErrors((err) => ({ ...err, [k]: undefined }))
   }
   const pick = (k: keyof FormState, v: string) => setForm((f) => ({ ...f, [k]: v }))
+
+  /** 已有条码（排除编辑中的商品自身），用于扫码查重 */
+  const existingBarcodes = products.filter((p) => p.id !== editing?.id).map((p) => p.barcode).filter((b): b is string => !!b)
+
+  const applyScan = ({ barcode, info }: BarcodeScanResult) => {
+    setForm((f) => ({
+      ...f,
+      barcode,
+      ...(info
+        ? {
+            name: info.name,
+            brand: info.brand,
+            spec: info.spec,
+            category: (categories as string[]).includes(info.category) ? info.category : f.category,
+            unit: (units as string[]).includes(info.unit) ? info.unit : f.unit,
+            retailPrice: info.retailPrice.toFixed(2),
+            purchasePrice: info.purchasePrice?.toFixed(2) ?? f.purchasePrice,
+          }
+        : {}),
+    }))
+    setErrors((err) => ({ ...err, barcode: undefined }))
+    if (info) {
+      toast.success('已填入扫码商品信息', { description: `${info.name} · 来源：${info.source}，请人工核对价格与分类后再保存` })
+    } else {
+      toast.success('已填入条码', { description: '条码库未收录该商品，请人工补全其余字段' })
+    }
+  }
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const name = form.name.trim()
@@ -218,15 +247,21 @@ export function ProductFormPage({ productId }: { productId?: string }) {
         }
       />
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 flex flex-col gap-4">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
+        <div className="flex flex-col gap-3 md:col-span-2 md:gap-4">
           <SectionCard title="基本信息" description="商品名称、条码、分类与规格">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:gap-x-4">
               <Field label="商品名称" required error={errors.name} className="col-span-2">
                 <Input value={form.name} onChange={binding('name')} placeholder="如：农夫山泉 饮用天然水" aria-invalid={!!errors.name} />
               </Field>
-              <Field label="商品条码" error={errors.barcode} hint="无法确认的条码请留空，系统不会自动编造">
-                <Input value={form.barcode} onChange={binding('barcode')} placeholder="69 开头的 13 位条码" inputMode="numeric" aria-invalid={!!errors.barcode} />
+              <Field label="商品条码" error={errors.barcode} hint="支持摄像头与扫码枪扫码录入；无法确认的条码请留空" className="col-span-2 md:col-span-1">
+                <div className="flex gap-2">
+                  <Input value={form.barcode} onChange={binding('barcode')} placeholder="69 开头的 13 位条码" inputMode="numeric" aria-invalid={!!errors.barcode} className="flex-1" />
+                  <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setScanOpen(true)}>
+                    <ScanBarcode data-icon="inline-start" />
+                    扫码录入
+                  </Button>
+                </div>
               </Field>
               <Field label="商品分类" required>
                 <Select items={categories.map((c) => ({ value: c, label: c }))} value={form.category} onValueChange={(v) => v && pick('category', v as string)}>
@@ -273,7 +308,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           </SectionCard>
 
           <SectionCard title="价格信息" description="零售价与会员价将用于收银台结算">
-            <div className="grid grid-cols-4 gap-x-4 gap-y-4">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4 md:gap-x-4">
               <Field label="进货价（元）" error={errors.purchasePrice}>
                 <Input value={form.purchasePrice} onChange={binding('purchasePrice')} inputMode="decimal" placeholder="0.00" aria-invalid={!!errors.purchasePrice} />
               </Field>
@@ -306,7 +341,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           </SectionCard>
 
           <SectionCard title="库存与供应商" description="用于库存预警与采购建议">
-            <div className="grid grid-cols-4 gap-x-4 gap-y-4">
+            <div className="grid grid-cols-2 gap-x-3 gap-y-4 md:grid-cols-4 md:gap-x-4">
               <Field label="当前库存" error={errors.stock}>
                 <Input value={form.stock} onChange={binding('stock')} inputMode="numeric" aria-invalid={!!errors.stock} />
               </Field>
@@ -328,7 +363,7 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 </Select>
               </Field>
             </div>
-            <div className="mt-4 flex items-center gap-3 rounded-lg bg-muted/50 px-3.5 py-3">
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg bg-muted/50 px-3.5 py-3">
               <span className="text-[13px] text-muted-foreground">商品状态</span>
               <div role="radiogroup" aria-label="商品状态" className="flex rounded-lg bg-background p-0.5 ring-1 ring-border">
                 {(['在售', '停售'] as const).map((s) => (
@@ -508,8 +543,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-10 -mx-6 -mb-6 mt-6 flex items-center gap-2 border-t border-border bg-background/95 px-6 py-3.5 backdrop-blur-sm">
-        <p className="mr-auto text-xs text-muted-foreground">
+      <div className="sticky bottom-14 z-10 -mx-4 -mb-4 mt-6 flex items-center gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-sm md:bottom-0 md:-mx-6 md:-mb-6 md:px-6 md:py-3.5">
+        <p className="mr-auto hidden text-xs text-muted-foreground sm:block">
           {editing ? '修改后立即生效，系统会记录最近更新时间' : '保存后商品将出现在商品管理中'}
         </p>
         <Button variant="outline" className="h-9" onClick={() => router.push('/products')}>
@@ -522,6 +557,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           {editing ? '保存修改' : '保存并新增'}
         </Button>
       </div>
+
+      <BarcodeScanDialog open={scanOpen} onOpenChange={setScanOpen} existingBarcodes={existingBarcodes} onApply={applyScan} />
     </>
   )
 }

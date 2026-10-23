@@ -31,8 +31,8 @@ export function KpiCards() {
   ]
 
   return (
-    <section aria-label="今日经营指标" className="grid grid-cols-5 gap-4">
-      {kpis.map((k) => {
+    <section aria-label="今日经营指标" className="grid grid-cols-2 gap-3 md:grid-cols-5 md:gap-4">
+      {kpis.map((k, idx) => {
         const Icon = k.icon
         const content = (
           <>
@@ -47,8 +47,8 @@ export function KpiCards() {
                 <Icon className="size-4" strokeWidth={1.75} aria-hidden="true" />
               </span>
             </div>
-            <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground tabular-nums">{k.value}</p>
-            <div className="mt-2 flex items-center gap-1.5 text-xs">
+            <p className="mt-2 text-xl font-semibold tracking-tight text-foreground tabular-nums md:text-2xl">{k.value}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs">
               {k.delta !== undefined && (
                 <span className={cn('inline-flex items-center gap-0.5 font-medium tabular-nums', k.delta >= 0 ? 'text-success' : 'text-danger')}>
                   {k.delta >= 0 ? <ArrowUpRight className="size-3.5" aria-hidden="true" /> : <ArrowDownRight className="size-3.5" aria-hidden="true" />}
@@ -59,7 +59,11 @@ export function KpiCards() {
             </div>
           </>
         )
-        const cls = 'rounded-xl border border-border bg-card p-4 transition-colors'
+        const cls = cn(
+          'rounded-xl border border-border bg-card p-4 transition-colors',
+          // 手机端两列布局：第 5 张卡占满整行，避免孤卡悬空
+          idx === kpis.length - 1 && 'col-span-2 md:col-span-1',
+        )
         return k.href ? (
           <Link key={k.label} href={k.href} className={cn(cls, 'hover:border-primary/40')}>
             {content}

@@ -24,13 +24,13 @@ export function TablePagination({
   const items = pageSizes.map((s) => ({ value: String(s), label: `${s} 条/页` }))
 
   return (
-    <div className="flex items-center justify-between border-t border-border px-5 py-3 text-[13px] text-muted-foreground">
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-[13px] text-muted-foreground md:px-5">
       <span>
         {'共 '}
         <span className="font-medium text-foreground tabular-nums">{total}</span>
         {' 条记录'}
       </span>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {onPageSizeChange && (
           <Select items={items} value={String(pageSize)} onValueChange={(v) => v && onPageSizeChange(Number(v))}>
             <SelectTrigger aria-label="每页条数" className="h-8 w-28 text-[13px]">

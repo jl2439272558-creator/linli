@@ -22,7 +22,7 @@ type Props = {
 
 export function SourceCards(props: Props) {
   return (
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
       <MeituanCard {...props} />
       <LinkCard {...props} />
       <FileCard {...props} />

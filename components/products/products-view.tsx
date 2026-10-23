@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { Download, Eye, MoreHorizontal, Package, PackagePlus, Pencil, RotateCcw, ScanLine, Search, Tag, Trash2, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
+import { Ban, Check, Download, Eye, FolderTree, MoreHorizontal, Package, PackagePlus, Pencil, RotateCcw, ScanLine, Search, Tag, Trash2, TriangleAlert, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -12,14 +12,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PageHeader } from '@/components/common/page-header'
 import { FilterSelect } from '@/components/common/filter-select'
 import { ProductThumb } from '@/components/common/product-thumb'
+import { StatCards, type StatItem } from '@/components/common/stat-cards'
 import { StatusBadge } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
-import { brands, categories, getStockStatus, suppliers, type Product } from '@/lib/mock-data'
+import { brands, categories, getStockStatus, suppliers, type Product, type ProductStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ProductDetailSheet } from './product-detail-sheet'
 import { ImportDialog } from './import-dialog'
+import { BulkEditDialog, type BulkMode } from './bulk-edit-dialog'
 import { stockTone } from './stock-tone'
 
 const ALL = 'all'
@@ -40,7 +42,7 @@ export function ProductsView() {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const { products, deleteProducts } = useDemoStore()
+  const { products, updateProduct, deleteProducts } = useDemoStore()
 
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [category, setCategory] = useState(params.get('category') ?? ALL)
@@ -53,6 +55,7 @@ export function ProductsView() {
   const [selected, setSelected] = useState<string[]>([])
   const [viewing, setViewing] = useState<Product | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [bulkMode, setBulkMode] = useState<BulkMode>(null)
 
   // 顶部全局搜索 / 工作台入口跳转时同步 URL 参数到筛选条件
   const paramKey = params.toString()
@@ -110,7 +113,15 @@ export function ProductsView() {
     toast.success(`已删除 ${ids.length} 个商品`, { description: '演示数据，刷新页面后恢复' })
   }
 
-  const stats: { label: string; value: number; icon: LucideIcon; tone: string; onClick: () => void; active: boolean }[] = [
+  const bulkSetStatus = (status: ProductStatus) => {
+    selected.forEach((id) => updateProduct(id, { status }))
+    toast.success(`已将 ${selected.length} 个商品设为「${status}」`, {
+      description: status === '停售' ? '停售商品不会出现在收银台，仍保留库存记录' : '已恢复在售状态',
+    })
+    setSelected([])
+  }
+
+  const stats: StatItem[] = [
     { label: '商品总数', value: products.length, icon: Package, tone: 'bg-brand-soft text-primary', onClick: resetFilters, active: !hasFilter },
     { label: '本月新增', value: products.filter((p) => p.updatedAt.startsWith('2026-10')).length, icon: PackagePlus, tone: 'bg-info-soft text-info', onClick: () => toast.info('本月新增', { description: '演示数据：本月录入的全部商品' }), active: false },
     { label: 'AI 采集商品', value: products.filter((p) => p.source === 'AI 采集').length, icon: ScanLine, tone: 'bg-ai-soft text-ai', onClick: () => router.push('/ai-collect'), active: false },
@@ -149,34 +160,11 @@ export function ProductsView() {
         }
       />
 
-      <div className="mb-4 grid grid-cols-4 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon
-          return (
-            <button
-              key={s.label}
-              type="button"
-              onClick={s.onClick}
-              className={cn(
-                'flex items-center gap-3.5 rounded-xl border bg-card px-4 py-3.5 text-left transition-colors hover:border-primary/40',
-                s.active ? 'border-primary/50 ring-1 ring-primary/20' : 'border-border',
-              )}
-            >
-              <span className={cn('flex size-10 items-center justify-center rounded-lg', s.tone)}>
-                <Icon className="size-5" strokeWidth={1.75} aria-hidden="true" />
-              </span>
-              <span>
-                <span className="block text-xs text-muted-foreground">{s.label}</span>
-                <span className="mt-0.5 block text-xl font-semibold tabular-nums">{s.value}</span>
-              </span>
-            </button>
-          )
-        })}
-      </div>
+      <StatCards items={stats} className="mb-4" />
 
       <section aria-label="商品列表" className="rounded-xl border border-border bg-card">
-        <div className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-3.5">
-          <div className="relative w-64">
+        <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3 md:gap-3 md:px-5">
+          <div className="relative w-full sm:w-64">
             <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
             <input
               aria-label="搜索商品名称或条码"
@@ -206,16 +194,28 @@ export function ProductsView() {
         </div>
 
         {selected.length > 0 && (
-          <div className="flex items-center gap-3 border-b border-border bg-brand-soft/50 px-5 py-2.5 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-border bg-brand-soft/50 px-4 py-2.5 text-[13px] md:px-5">
             <span>
               {'已选择 '}
               <span className="font-semibold text-primary tabular-nums">{selected.length}</span>
               {' 个商品'}
             </span>
             <div className="h-4 w-px bg-border" aria-hidden="true" />
-            <Button variant="ghost" size="sm" onClick={() => toast.info('批量调价', { description: '价格管理模块将在后续阶段开放，改价需人工确认' })}>
+            <Button variant="ghost" size="sm" onClick={() => setBulkMode('price')}>
               <Tag data-icon="inline-start" />
               批量调价
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setBulkMode('category')}>
+              <FolderTree data-icon="inline-start" />
+              批量分类
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => bulkSetStatus('在售')}>
+              <Check data-icon="inline-start" />
+              批量启用
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => bulkSetStatus('停售')}>
+              <Ban data-icon="inline-start" />
+              批量停用
             </Button>
             <Button variant="ghost" size="sm" onClick={() => toast.success(`已导出 ${selected.length} 条商品数据`, { description: '演示文件，未实际下载' })}>
               <Download data-icon="inline-start" />
@@ -231,7 +231,7 @@ export function ProductsView() {
           </div>
         )}
 
-        <Table className="min-w-[1180px] text-[13px]">
+        <div className="overflow-x-auto"><Table className="min-w-[1180px] text-[13px]">
           <TableHeader>
             <TableRow className="bg-muted/50 hover:bg-muted/50 [&_th]:h-10 [&_th]:text-xs [&_th]:font-medium [&_th]:text-muted-foreground">
               <TableHead className="w-10 pl-5">
@@ -343,7 +343,7 @@ export function ProductsView() {
               })
             )}
           </TableBody>
-        </Table>
+        </Table></div>
 
         <TablePagination
           total={filtered.length}
@@ -359,6 +359,7 @@ export function ProductsView() {
 
       <ProductDetailSheet product={viewing} onOpenChange={(o) => !o && setViewing(null)} onEdit={openEdit} />
       <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
+      <BulkEditDialog mode={bulkMode} ids={selected} onOpenChange={setBulkMode} onDone={() => setSelected([])} />
     </>
   )
 }

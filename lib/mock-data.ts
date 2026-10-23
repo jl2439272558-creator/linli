@@ -25,10 +25,31 @@ export type Product = {
 
 export const categories = ['饮料冲调', '方便速食', '休闲零食', '乳品', '日用百货', '家庭清洁', '粮油调味', '个人护理']
 export const brands = ['农夫山泉', '可口可乐', '康师傅', '统一', '维达', '蓝月亮', '乐事', '奥利奥', '蒙牛', '元气森林', '旺旺', '立白', '怡宝', '卫龙', '金龙鱼', '舒肤佳']
-export const stores = [
-  { id: 's1', name: '幸福里社区店', address: '杭州市西湖区文三路 218 号' },
-  { id: 's2', name: '阳光花园店', address: '杭州市拱墅区湖墅南路 66 号' },
-  { id: 's3', name: '东湖便利店', address: '杭州市余杭区东湖北路 9 号' },
+export type StoreStatus = '营业中' | '筹备中' | '已停业'
+
+export type StoreInfo = {
+  id: string
+  name: string
+  address: string
+  phone: string
+  hours: string
+  manager: string
+  status: StoreStatus
+  openedAt: string
+  /** 本月销售额（演示值） */
+  monthSales: number
+}
+
+export const storeStatusTone: Record<StoreStatus, 'success' | 'info' | 'neutral'> = {
+  营业中: 'success',
+  筹备中: 'info',
+  已停业: 'neutral',
+}
+
+export const stores: StoreInfo[] = [
+  { id: 's1', name: '幸福里社区店', address: '杭州市西湖区文三路 218 号', phone: '0571-8821 6690', hours: '07:00–23:00', manager: '王建国', status: '营业中', openedAt: '2023-06-18', monthSales: 218420 },
+  { id: 's2', name: '阳光花园店', address: '杭州市拱墅区湖墅南路 66 号', phone: '0571-8765 2310', hours: '07:30–22:30', manager: '周婷', status: '营业中', openedAt: '2024-04-02', monthSales: 162350 },
+  { id: 's3', name: '东湖便利店', address: '杭州市余杭区东湖北路 9 号', phone: '0571-8902 4471', hours: '08:00–22:00', manager: '郑凯', status: '筹备中', openedAt: '2026-11-01', monthSales: 0 },
 ]
 
 export const suppliers = ['杭州华润食品批发', '康达饮料经销', '佳旺日化供应链', '万家粮油商贸', '鲜丰乳品供应']
@@ -142,6 +163,76 @@ export const salesTrend = [
   { date: '10-19', sales: 10120, profit: 2490 },
   { date: '10-20', sales: 8426, profit: 2068 },
 ]
+
+/**
+ * 近 90 天销售流水（2026-07-23 至 2026-10-20，演示数据）。
+ * 前 76 天由确定性公式生成，最后 14 天沿用 salesTrend，保证与工作台指标一致。
+ * 订单数按客单价 27 元推算（与 todayStats.avgTicket 一致）。
+ */
+export const salesDaily: { date: string; sales: number; profit: number; orders: number }[] = (() => {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const end = new Date(2026, 9, 20)
+  const rows: { date: string; sales: number; profit: number; orders: number }[] = []
+  for (let i = 90 - 14; i >= 1; i--) {
+    const d = new Date(end)
+    d.setDate(end.getDate() - i)
+    const dow = d.getDay()
+    const weekend = dow === 0 || dow === 6
+    const wave = Math.sin(i / 4.7) * 560
+    const growth = (90 - i) * 9
+    const sales = Math.round((weekend ? 9300 : 7350) + wave + growth)
+    rows.push({ date: `${pad(d.getMonth() + 1)}-${pad(d.getDate())}`, sales, profit: Math.round(sales * 0.245), orders: Math.round(sales / 27) })
+  }
+  for (const d of salesTrend) rows.push({ date: d.date, sales: d.sales, profit: d.profit, orders: Math.round(d.sales / 27) })
+  return rows
+})()
+
+/* ---------------- 商品销售排行（经营报表用） ---------------- */
+
+/** 近 30 天各商品销量（演示值），金额与毛利按商品库中的定价计算，保证跨页一致 */
+const productSalesQty: { productId: string; quantity: number }[] = [
+  { productId: 'P10001', quantity: 3720 },
+  { productId: 'P10002', quantity: 2040 },
+  { productId: 'P10003', quantity: 1560 },
+  { productId: 'P10010', quantity: 920 },
+  { productId: 'P10004', quantity: 840 },
+  { productId: 'P10007', quantity: 520 },
+  { productId: 'P10011', quantity: 480 },
+  { productId: 'P10008', quantity: 300 },
+  { productId: 'P10005', quantity: 192 },
+  { productId: 'P10009', quantity: 108 },
+]
+
+export type ProductSalesRow = {
+  productId: string
+  name: string
+  category: string
+  brand: string
+  quantity: number
+  sales: number
+  profit: number
+  margin: number
+}
+
+export const productSalesRank: ProductSalesRow[] = productSalesQty
+  .map(({ productId, quantity }) => {
+    const p = initialProducts.find((x) => x.id === productId)
+    if (!p || p.retailPrice === null) return null
+    const sales = quantity * p.retailPrice
+    const profit = quantity * (p.retailPrice - (p.purchasePrice ?? p.retailPrice))
+    return {
+      productId,
+      name: p.name,
+      category: p.category,
+      brand: p.brand,
+      quantity,
+      sales,
+      profit,
+      margin: sales ? (profit / sales) * 100 : 0,
+    }
+  })
+  .filter((r): r is ProductSalesRow => r !== null)
+  .sort((a, b) => b.sales - a.sales)
 
 export const categorySales = [
   { category: '饮料冲调', sales: 2864 },
@@ -486,4 +577,334 @@ export const assistantInsufficient: AssistantTopic = {
   actions: [{ label: '前往数据导入导出', href: '/settings' }],
   insufficient: true,
 }
+
+/* ---------------- 会员与销售订单 ---------------- */
+
+export type MemberLevel = '普通会员' | '银卡会员' | '金卡会员'
+
+export type Member = {
+  id: string
+  name: string
+  phone: string
+  level: MemberLevel
+  points: number
+  joinedAt: string
+  lastVisitAt: string
+}
+
+export const members: Member[] = [
+  { id: 'M0001', name: '张敏', phone: '138****6621', level: '金卡会员', points: 1860, joinedAt: '2024-03-12', lastVisitAt: '2026-10-20 09:40' },
+  { id: 'M0002', name: '李晓', phone: '139****3208', level: '银卡会员', points: 920, joinedAt: '2025-01-08', lastVisitAt: '2026-10-19 20:12' },
+  { id: 'M0003', name: '陈立', phone: '137****4477', level: '普通会员', points: 210, joinedAt: '2026-05-20', lastVisitAt: '2026-10-18 18:36' },
+  { id: 'M0004', name: '刘芳', phone: '135****9911', level: '银卡会员', points: 640, joinedAt: '2025-09-02', lastVisitAt: '2026-10-17 12:05' },
+  { id: 'M0005', name: '赵强', phone: '186****2033', level: '普通会员', points: 95, joinedAt: '2026-08-14', lastVisitAt: '2026-10-15 19:22' },
+]
+
+export type PayMethod = '微信支付' | '支付宝' | '现金' | '会员卡'
+
+export const payMethods: PayMethod[] = ['微信支付', '支付宝', '现金', '会员卡']
+
+export type SaleOrderStatus = '已完成' | '部分退款' | '已退款'
+
+export type SaleOrderItem = { productId: string; name: string; unit: string; price: number; quantity: number }
+
+export type SaleOrder = {
+  id: string
+  createdAt: string
+  items: SaleOrderItem[]
+  /** 应收金额（折扣前） */
+  amount: number
+  /** 优惠金额（会员折扣 + 抹零） */
+  discount: number
+  /** 实收金额 */
+  paid: number
+  payMethod: PayMethod
+  cashier: string
+  memberName: string | null
+  memberPhone: string | null
+  status: SaleOrderStatus
+  /** 累计退款金额 */
+  refunded: number
+}
+
+export const saleOrderStatusTone: Record<SaleOrderStatus, 'success' | 'warning' | 'danger'> = {
+  已完成: 'success',
+  部分退款: 'warning',
+  已退款: 'danger',
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+function makeOrder(
+  id: string,
+  createdAt: string,
+  payMethod: PayMethod,
+  cashier: string,
+  memberName: string | null,
+  memberPhone: string | null,
+  cart: [string, number][],
+  discount = 0,
+  status: SaleOrderStatus = '已完成',
+  refunded = 0,
+): SaleOrder {
+  const items: SaleOrderItem[] = cart.map(([productId, quantity]) => {
+    const p = initialProducts.find((x) => x.id === productId)
+    return { productId, name: p?.name ?? productId, unit: p?.unit ?? '件', price: p?.retailPrice ?? 0, quantity }
+  })
+  const amount = round2(items.reduce((s, i) => s + i.price * i.quantity, 0))
+  return {
+    id,
+    createdAt,
+    items,
+    amount,
+    discount,
+    paid: round2(amount - discount),
+    payMethod,
+    cashier,
+    memberName,
+    memberPhone,
+    status,
+    refunded,
+  }
+}
+
+export const initialSaleOrders: SaleOrder[] = [
+  makeOrder('SO20261020012', '2026-10-20 10:18', '微信支付', '王店长', '张敏', '138****6621', [['P10001', 2], ['P10007', 1]], 0.5),
+  makeOrder('SO20261020011', '2026-10-20 09:52', '支付宝', '王店长', null, null, [['P10003', 2], ['P10002', 2]]),
+  makeOrder('SO20261020010', '2026-10-20 09:30', '现金', '李晓', null, null, [['P10011', 1], ['P10010', 1]], 0.3),
+  makeOrder('SO20261020009', '2026-10-20 09:05', '微信支付', '李晓', '陈立', '137****4477', [['P10004', 1], ['P10008', 1]]),
+  makeOrder('SO20261020008', '2026-10-20 08:48', '会员卡', '王店长', '刘芳', '135****9911', [['P10009', 1]], 2.0),
+  makeOrder('SO20261020007', '2026-10-20 08:26', '微信支付', '王店长', null, null, [['P10001', 3], ['P10005', 1]]),
+  makeOrder('SO20261020006', '2026-10-20 08:12', '现金', '张敏', null, null, [['P10007', 2], ['P10002', 1]], 0.2),
+  makeOrder('SO20261020005', '2026-10-20 08:02', '微信支付', '张敏', null, null, [['P10006', 1]], 0, '已退款', 49.9),
+  makeOrder('SO20261019008', '2026-10-19 20:41', '支付宝', '李晓', '李晓', '139****3208', [['P10012', 1], ['P10005', 1]], 0, '部分退款', 11.9),
+  makeOrder('SO20261019007', '2026-10-19 20:05', '微信支付', '王店长', null, null, [['P10003', 3], ['P10010', 2]]),
+  makeOrder('SO20261019006', '2026-10-19 19:38', '现金', '李晓', null, null, [['P10008', 2], ['P10007', 1]]),
+  makeOrder('SO20261019005', '2026-10-19 18:52', '微信支付', '王店长', '赵强', '186****2033', [['P10001', 4], ['P10011', 2]], 1.0),
+]
+
+/* ---------------- 退货退款 ---------------- */
+
+export type RefundStatus = '待处理' | '已退款' | '已拒绝'
+
+export const refundStatusTone: Record<RefundStatus, 'warning' | 'success' | 'neutral'> = {
+  待处理: 'warning',
+  已退款: 'success',
+  已拒绝: 'neutral',
+}
+
+export type RefundItem = { productId: string; name: string; unit: string; price: number; quantity: number }
+
+export type RefundRecord = {
+  id: string
+  orderId: string
+  createdAt: string
+  items: RefundItem[]
+  amount: number
+  reason: string
+  status: RefundStatus
+  operator: string
+  handledAt: string | null
+  /** 是否已回滚库存 */
+  stockRolledBack: boolean
+}
+
+export const refundReasons = ['商品破损', '临期或过期', '顾客不想要', '价格标示错误', '收银错误']
+
+function makeRefund(
+  id: string,
+  orderId: string,
+  createdAt: string,
+  cart: [string, number][],
+  reason: string,
+  status: RefundStatus,
+  operator: string,
+  handledAt: string | null,
+  stockRolledBack: boolean,
+): RefundRecord {
+  const items: RefundItem[] = cart.map(([productId, quantity]) => {
+    const order = initialSaleOrders.find((o) => o.id === orderId)
+    const line = order?.items.find((i) => i.productId === productId)
+    const p = initialProducts.find((x) => x.id === productId)
+    return {
+      productId,
+      name: line?.name ?? p?.name ?? productId,
+      unit: line?.unit ?? p?.unit ?? '件',
+      price: line?.price ?? p?.retailPrice ?? 0,
+      quantity,
+    }
+  })
+  return {
+    id,
+    orderId,
+    createdAt,
+    items,
+    amount: round2(items.reduce((s, i) => s + i.price * i.quantity, 0)),
+    reason,
+    status,
+    operator,
+    handledAt,
+    stockRolledBack,
+  }
+}
+
+export const initialRefunds: RefundRecord[] = [
+  makeRefund('RF20261020003', 'SO20261020011', '2026-10-20 10:26', [['P10003', 1]], '商品破损', '待处理', '王店长', null, false),
+  makeRefund('RF20261020002', 'SO20261020005', '2026-10-20 08:30', [['P10006', 1]], '临期或过期', '已退款', '王店长', '2026-10-20 08:44', true),
+  makeRefund('RF20261020001', 'SO20261019008', '2026-10-19 21:02', [['P10012', 1]], '顾客不想要', '已退款', '李晓', '2026-10-19 21:15', true),
+  makeRefund('RF20261019004', 'SO20261019006', '2026-10-19 20:10', [['P10008', 1]], '价格标示错误', '已拒绝', '王店长', '2026-10-19 20:25', false),
+]
+
+/* ---------------- 供应商 ---------------- */
+
+export type SupplierStatus = '合作中' | '暂停合作'
+
+export type SupplierDetail = {
+  id: string
+  /** 与商品档案、采购单中的供应商名称一致 */
+  name: string
+  contact: string
+  /** 演示环境仅保留前三后四 */
+  phone: string
+  categories: string[]
+  status: SupplierStatus
+  /** 近 90 天到货准时率（%） */
+  onTimeRate: number
+  since: string
+  address: string
+}
+
+export const supplierStatusTone: Record<SupplierStatus, 'success' | 'neutral'> = {
+  合作中: 'success',
+  暂停合作: 'neutral',
+}
+
+export const initialSupplierDetails: SupplierDetail[] = [
+  { id: 'SUP01', name: '杭州华润食品批发', contact: '陈经理', phone: '138****2266', categories: ['方便速食', '休闲零食', '粮油调味'], status: '合作中', onTimeRate: 96, since: '2023-06-20', address: '杭州市余杭区勾庄农产品物流中心 B12' },
+  { id: 'SUP02', name: '康达饮料经销', contact: '刘经理', phone: '139****7741', categories: ['饮料冲调'], status: '合作中', onTimeRate: 98, since: '2023-06-20', address: '杭州市萧山区红垦农场物流园 3 号库' },
+  { id: 'SUP03', name: '佳旺日化供应链', contact: '孙经理', phone: '137****5509', categories: ['家庭清洁', '日用百货', '个人护理'], status: '合作中', onTimeRate: 91, since: '2023-08-14', address: '杭州市临平区南苑街道联胜路 88 号' },
+  { id: 'SUP04', name: '万家粮油商贸', contact: '吴经理', phone: '135****0182', categories: ['粮油调味'], status: '暂停合作', onTimeRate: 84, since: '2024-01-09', address: '杭州市江干区九堡家苑三区 21 幢' },
+  { id: 'SUP05', name: '鲜丰乳品供应', contact: '许经理', phone: '186****3347', categories: ['乳品'], status: '合作中', onTimeRate: 99, since: '2023-07-01', address: '杭州市西湖区三墩镇西园八路 6 号' },
+]
+
+/* ---------------- 员工与权限 ---------------- */
+
+export type StaffRole = '店长' | '收银员' | '理货员'
+export type StaffStatus = '在职' | '已停用'
+
+export type StaffMember = {
+  id: string
+  name: string
+  account: string
+  role: StaffRole
+  storeId: string
+  /** 演示环境仅保留前三后四 */
+  phone: string
+  status: StaffStatus
+  lastLoginAt: string | null
+}
+
+export const staffStatusTone: Record<StaffStatus, 'success' | 'neutral'> = {
+  在职: 'success',
+  已停用: 'neutral',
+}
+
+export const roleTone: Record<StaffRole, 'brand' | 'info' | 'neutral'> = {
+  店长: 'brand',
+  收银员: 'info',
+  理货员: 'neutral',
+}
+
+export const initialStaff: StaffMember[] = [
+  { id: 'E001', name: '王建国', account: 'wangjianguo', role: '店长', storeId: 's1', phone: '138****5501', status: '在职', lastLoginAt: '2026-10-20 10:30' },
+  { id: 'E002', name: '李晓', account: 'lixiao', role: '收银员', storeId: 's1', phone: '139****3208', status: '在职', lastLoginAt: '2026-10-20 09:58' },
+  { id: 'E003', name: '张敏', account: 'zhangmin', role: '收银员', storeId: 's1', phone: '137****6621', status: '在职', lastLoginAt: '2026-10-20 08:12' },
+  { id: 'E004', name: '周婷', account: 'zhouting', role: '店长', storeId: 's2', phone: '135****8843', status: '在职', lastLoginAt: '2026-10-19 21:40' },
+  { id: 'E005', name: '郑凯', account: 'zhengkai', role: '理货员', storeId: 's3', phone: '186****2093', status: '在职', lastLoginAt: null },
+  { id: 'E006', name: '钱丽', account: 'qianli', role: '收银员', storeId: 's2', phone: '150****7716', status: '已停用', lastLoginAt: '2026-09-28 17:22' },
+]
+
+/** 角色权限矩阵：模块 × 角色 */
+export const permissionModules = ['经营报表', '商品管理', '库存管理', '采购入库', '销售收银', '退货退款', '系统设置'] as const
+
+export const rolePermissions: Record<StaffRole, (typeof permissionModules)[number][]> = {
+  店长: ['经营报表', '商品管理', '库存管理', '采购入库', '销售收银', '退货退款', '系统设置'],
+  收银员: ['销售收银', '退货退款'],
+  理货员: ['商品管理', '库存管理', '采购入库'],
+}
+
+/* ---------------- 调价记录 ---------------- */
+
+export type PriceField = '零售价' | '会员价' | '最低售价'
+
+export type PriceLog = {
+  id: string
+  createdAt: string
+  field: PriceField
+  /** 调价方式描述，如「按比例 +5%」 */
+  mode: string
+  scope: string
+  affected: number
+  operator: string
+}
+
+export const initialPriceLogs: PriceLog[] = [
+  { id: 'PL20261015001', createdAt: '2026-10-15 14:20', field: '零售价', mode: '按比例 +3%', scope: '分类：饮料冲调', affected: 3, operator: '王建国' },
+  { id: 'PL20260928002', createdAt: '2026-09-28 10:05', field: '会员价', mode: '固定金额 -0.20 元', scope: '供应商：康达饮料经销', affected: 3, operator: '王建国' },
+]
+
+/* ---------------- AI 经营分析记录 ---------------- */
+
+export type AiAnalysisLog = {
+  id: string
+  question: string
+  conclusion: string
+  basis: string
+  createdAt: string
+  operator: string
+}
+
+export const aiAnalysisLogs: AiAnalysisLog[] = [
+  { id: 'AN20261020002', question: '哪些商品应该补货？', conclusion: '5 个商品低于安全库存，建议采购金额 ¥ 1,508.30', basis: '库存台账快照 · 2026-10-20 10:30', createdAt: '2026-10-20 10:31', operator: '王建国' },
+  { id: 'AN20261020001', question: '今天的经营情况怎么样？', conclusion: '销售额 ¥ 8,426.50，环比 +6.8%，毛利率 24.5%', basis: 'POS 销售流水 · 2026-10-20 00:00–10:30', createdAt: '2026-10-20 10:30', operator: '王建国' },
+  { id: 'AN20261019003', question: '哪些商品库存高但销售慢？', conclusion: '2 款日化商品 30 天未动销，占用 ¥ 977.00', basis: '销售流水 + 库存台账 · 2026-09-20–2026-10-19', createdAt: '2026-10-19 16:40', operator: '李晓' },
+  { id: 'AN20261019002', question: '哪些商品的定价需要调整？', conclusion: '3 款商品毛利率偏离品类区间，已给出建议价', basis: '价格台账 + 销售流水 · 2026-10-01–2026-10-19', createdAt: '2026-10-19 15:12', operator: '王建国' },
+  { id: 'AN20261018001', question: '这次应该找哪些供应商进货？', conclusion: '建议向 3 家供应商下单，共 5 个 SKU', basis: '商品主档 + 库存台账 · 2026-10-18 09:00', createdAt: '2026-10-18 09:05', operator: '李晓' },
+]
+
+/* ---------------- 账号与订阅 ---------------- */
+
+export type Plan = {
+  id: string
+  name: string
+  price: number
+  priceUnit: string
+  storeQuota: number
+  staffQuota: number
+  aiQuota: number
+  features: string[]
+}
+
+export const plans: Plan[] = [
+  { id: 'basic', name: '基础版', price: 99, priceUnit: '元/月', storeQuota: 1, staffQuota: 5, aiQuota: 200, features: ['单门店管理', '收银与订单', '基础库存管理', 'AI 识别 200 张/月'] },
+  { id: 'pro', name: '专业版', price: 299, priceUnit: '元/月', storeQuota: 5, staffQuota: 20, aiQuota: 1000, features: ['5 门店 / 20 员工', '采购与库存预警', '经营报表与 AI 助手', 'AI 识别 1,000 张/月'] },
+  { id: 'flagship', name: '旗舰版', price: 599, priceUnit: '元/月', storeQuota: 20, staffQuota: 100, aiQuota: 5000, features: ['20 门店 / 100 员工', '多门店经营对比', '专属客服与数据迁移', 'AI 识别 5,000 张/月'] },
+]
+
+export const subscriptionInfo = {
+  planId: 'pro',
+  planName: '专业版',
+  startedAt: '2026-04-01',
+  expiresAt: '2027-03-31',
+  autoRenew: true,
+  aiUsed: 640,
+  aiQuota: 1000,
+  invoiceTitle: '杭州邻礼便利连锁有限公司',
+}
+
+export const billingRecords = [
+  { id: 'INV20260401001', createdAt: '2026-04-01', item: '专业版订阅（2026-04 至 2027-03）', amount: 3588, status: '已支付' },
+  { id: 'INV20251012003', createdAt: '2025-10-12', item: 'AI 识别加量包 500 张', amount: 99, status: '已支付' },
+  { id: 'INV20250401001', createdAt: '2025-04-01', item: '基础版订阅（2025-04 至 2026-03）', amount: 1188, status: '已支付' },
+]
 
