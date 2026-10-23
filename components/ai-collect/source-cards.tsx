@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useDemoStore } from '@/components/providers/demo-store'
+import { csvDataRows } from '@/lib/csv'
 import { cn } from '@/lib/utils'
 
 export type SourceKey = 'meituan' | 'link' | 'file'
@@ -167,16 +168,30 @@ function MeituanCard({ selected, onSelect, materials, onMaterial }: Props) {
         <input
           ref={fileRef}
           type="file"
-          accept=".xlsx,.csv"
+          accept=".csv"
           className="sr-only"
           aria-label="导入美团导出文件"
-          onChange={(e) => {
+          onChange={async (e) => {
             const f = e.target.files?.[0]
-            if (!f) return
-            onSelect('meituan')
-            onMaterial('meituan', { label: f.name, count: 36 })
-            toast.success('文件已读取', { description: `${f.name}（演示：按 36 项商品处理）` })
             e.target.value = ''
+            if (!f) return
+            if (/\.xlsx?$/i.test(f.name)) {
+              toast.info('暂不支持 Excel 文件', { description: '请在 Excel 中另存为 CSV（逗号分隔）后再导入' })
+              return
+            }
+            try {
+              const text = await f.text()
+              const rows = csvDataRows(text)
+              if (!rows) {
+                toast.info('文件中没有商品数据行', { description: '需要表头行与至少一行数据' })
+                return
+              }
+              onSelect('meituan')
+              onMaterial('meituan', { label: f.name, count: rows, files: [f.name] })
+              toast.success(`已解析 ${rows} 项商品`, { description: `${f.name} · 数据行数来自文件实际内容` })
+            } catch {
+              toast.error('文件读取失败', { description: '请确认文件未被占用且格式为 CSV' })
+            }
           }}
         />
         <Button variant="outline" className="h-9 flex-1" onClick={() => fileRef.current?.click()}>
@@ -302,18 +317,44 @@ function FileCard({ selected, onSelect, materials, onMaterial }: Props) {
   const [dragging, setDragging] = useState(false)
   const m = materials.file
 
-  const accept = (files: FileList | null) => {
+  const accept = async (files: FileList | null) => {
     if (!files?.length) return
-    const names = Array.from(files).map((f) => f.name)
-    const images = names.filter((n) => /\.(png|jpe?g|webp|heic)$/i.test(n)).length
-    const sheets = names.length - images
+    const list = Array.from(files)
+    const images = list.filter((f) => /\.(png|jpe?g|webp|heic)$/i.test(f.name))
+    const sheets = list.filter((f) => /\.(csv|xlsx|xls)$/i.test(f.name))
+    const excel = sheets.filter((f) => /\.xlsx?$/i.test(f.name))
+    if (excel.length) {
+      toast.info('暂不支持 Excel 文件', { description: `请将「${excel[0].name}」另存为 CSV 后重新上传` })
+      if (!images.length) return
+    }
+    // CSV 按实际数据行计数；图片按张数计数
+    let csvRows = 0
+    let csvOk = true
+    for (const f of sheets) {
+      if (/\.xlsx?$/i.test(f.name)) continue
+      try {
+        csvRows += csvDataRows(await f.text())
+      } catch {
+        csvOk = false
+      }
+    }
+    const count = images.length + csvRows
+    if (!count) {
+      toast.info('没有可用的商品数据', { description: '图片可直接识别；CSV 需包含表头与数据行' })
+      return
+    }
     onSelect('file')
     onMaterial('file', {
-      label: names.length === 1 ? names[0] : `${images ? `${images} 张图片` : ''}${images && sheets ? '、' : ''}${sheets ? `${sheets} 个表格` : ''}`,
-      count: images + sheets * 20,
-      files: names,
+      label:
+        list.length === 1
+          ? list[0].name
+          : `${images.length ? `${images.length} 张图片` : ''}${images.length && csvRows ? '、' : ''}${csvRows ? `${csvRows} 行商品数据` : ''}`,
+      count,
+      files: list.map((f) => f.name),
     })
-    toast.success(`已添加 ${names.length} 个文件`, { description: '文件仅在浏览器本地读取，未上传服务器' })
+    toast.success(`已添加 ${list.length} 个文件`, {
+      description: csvOk ? `识别到 ${count} 项待处理资料，文件仅在浏览器本地读取` : '部分 CSV 解析失败，请检查文件格式',
+    })
   }
 
   return (
@@ -322,7 +363,7 @@ function FileCard({ selected, onSelect, materials, onMaterial }: Props) {
       icon={ImageIcon}
       iconClass="bg-ai-soft text-ai"
       title="图片与文件识别"
-      desc="上传货架照片、商品包装图，或 Excel / CSV 商品清单"
+      desc="上传货架照片、商品包装图，或 CSV 商品清单（Excel 请先另存为 CSV）"
       selected={selected}
       onSelect={onSelect}
     >
@@ -330,11 +371,11 @@ function FileCard({ selected, onSelect, materials, onMaterial }: Props) {
         ref={inputRef}
         type="file"
         multiple
-        accept="image/*,.xlsx,.xls,.csv"
+        accept="image/*,.csv"
         className="sr-only"
         aria-label="上传图片或文件"
         onChange={(e) => {
-          accept(e.target.files)
+          void accept(e.target.files)
           e.target.value = ''
         }}
       />
@@ -356,7 +397,7 @@ function FileCard({ selected, onSelect, materials, onMaterial }: Props) {
           onDrop={(e) => {
             e.preventDefault()
             setDragging(false)
-            accept(e.dataTransfer.files)
+            void accept(e.dataTransfer.files)
           }}
           className={cn(
             'flex h-[76px] flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-xs transition-colors',
@@ -369,7 +410,7 @@ function FileCard({ selected, onSelect, materials, onMaterial }: Props) {
       )}
       <div className="mt-auto flex items-center gap-3 pt-4 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1"><ImageIcon className="size-3.5" aria-hidden="true" />JPG / PNG</span>
-        <span className="inline-flex items-center gap-1"><FileSpreadsheet className="size-3.5" aria-hidden="true" />Excel / CSV</span>
+        <span className="inline-flex items-center gap-1"><FileSpreadsheet className="size-3.5" aria-hidden="true" />CSV 商品清单</span>
         <span className="ml-auto">单个文件 ≤ 20MB</span>
       </div>
     </CardShell>

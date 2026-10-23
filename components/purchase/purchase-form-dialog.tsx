@@ -60,7 +60,7 @@ function Form({ onDone }: { onDone: () => void }) {
   const totalQty = drafts.reduce((s, r) => s + (Number(r.quantity) || 0), 0)
   const totalAmount = drafts.reduce((s, r) => s + (Number(r.quantity) || 0) * (r.price ?? 0), 0)
 
-  const submit = (status: '草稿' | '待确认') => {
+  const submit = async (status: '草稿' | '待确认') => {
     if (!rows.length) {
       toast.info('请至少添加一个商品', { description: '可从库存偏低的商品中选择' })
       return
@@ -71,23 +71,21 @@ function Form({ onDone }: { onDone: () => void }) {
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      const items: PurchaseItem[] = drafts.map((r) => ({
-        productId: r.productId,
-        name: r.name,
-        spec: r.spec,
-        unit: r.unit,
-        quantity: Number(r.quantity),
-        received: 0,
-        price: r.price ?? 0,
-      }))
-      const order = addPurchaseOrder({ supplier, status, expectedAt, items })
-      setSaving(false)
-      onDone()
-      toast.success(status === '草稿' ? '采购单已保存为草稿' : '采购单已创建', {
-        description: `${order.id} · ${supplier} · ${items.length} 个商品 · ${formatMoney(totalAmount)}`,
-      })
-    }, 600)
+    const items: PurchaseItem[] = drafts.map((r) => ({
+      productId: r.productId,
+      name: r.name,
+      spec: r.spec,
+      unit: r.unit,
+      quantity: Number(r.quantity),
+      received: 0,
+      price: r.price ?? 0,
+    }))
+    const order = await addPurchaseOrder({ supplier, status, expectedAt, items })
+    setSaving(false)
+    onDone()
+    toast.success(status === '草稿' ? '采购单已保存为草稿' : '采购单已创建', {
+      description: `${order.id} · ${supplier} · ${items.length} 个商品 · ${formatMoney(totalAmount)}`,
+    })
   }
 
   return (

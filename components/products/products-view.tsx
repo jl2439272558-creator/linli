@@ -18,6 +18,7 @@ import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { brands, categories, getStockStatus, suppliers, type Product, type ProductStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 import { cn } from '@/lib/utils'
 import { ProductDetailSheet } from './product-detail-sheet'
 import { ImportDialog } from './import-dialog'
@@ -42,7 +43,7 @@ export function ProductsView() {
   const router = useRouter()
   const pathname = usePathname()
   const params = useSearchParams()
-  const { products, updateProduct, deleteProducts } = useDemoStore()
+  const { products, updateProduct, deleteProducts, bulkUpdateProducts } = useDemoStore()
 
   const [query, setQuery] = useState(params.get('q') ?? '')
   const [category, setCategory] = useState(params.get('category') ?? ALL)
@@ -110,16 +111,41 @@ export function ProductsView() {
   const remove = (ids: string[]) => {
     deleteProducts(ids)
     setSelected((s) => s.filter((id) => !ids.includes(id)))
-    toast.success(`已删除 ${ids.length} 个商品`, { description: '演示数据，刷新页面后恢复' })
+    toast.success(`已删除 ${ids.length} 个商品`, { description: '删除已同步到商品库' })
   }
 
   const bulkSetStatus = (status: ProductStatus) => {
-    selected.forEach((id) => updateProduct(id, { status }))
+    bulkUpdateProducts(selected, { status })
     toast.success(`已将 ${selected.length} 个商品设为「${status}」`, {
       description: status === '停售' ? '停售商品不会出现在收银台，仍保留库存记录' : '已恢复在售状态',
     })
     setSelected([])
   }
+
+  const exportProducts = (rows: Product[]) =>
+    downloadCsv(
+      `商品列表_${todaySuffix()}`,
+      ['商品编号', '商品名称', '分类', '品牌', '规格', '条码', '进货价', '零售价', '会员价', '最低售价', '库存', '安全库存', '单位', '供应商', '状态', '来源', '更新时间'],
+      rows.map((p) => [
+        p.id,
+        p.name,
+        p.category,
+        p.brand,
+        p.spec ?? '',
+        p.barcode ?? '',
+        p.purchasePrice,
+        p.retailPrice,
+        p.memberPrice,
+        p.minPrice,
+        p.stock,
+        p.safetyStock,
+        p.unit,
+        p.supplier,
+        p.status,
+        p.source,
+        p.updatedAt,
+      ]),
+    )
 
   const stats: StatItem[] = [
     { label: '商品总数', value: products.length, icon: Package, tone: 'bg-brand-soft text-primary', onClick: resetFilters, active: !hasFilter },
@@ -143,7 +169,7 @@ export function ProductsView() {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${filtered.length} 条商品数据`, { description: '商品列表_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() => exportProducts(filtered)}
             >
               <Download data-icon="inline-start" />
               导出数据
@@ -217,7 +243,7 @@ export function ProductsView() {
               <Ban data-icon="inline-start" />
               批量停用
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => toast.success(`已导出 ${selected.length} 条商品数据`, { description: '演示文件，未实际下载' })}>
+            <Button variant="ghost" size="sm" onClick={() => exportProducts(products.filter((p) => selected.includes(p.id)))}>
               <Download data-icon="inline-start" />
               导出所选
             </Button>

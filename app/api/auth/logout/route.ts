@@ -1,0 +1,9 @@
+import { NextResponse } from 'next/server'
+import { SESSION_COOKIE } from '@/lib/server/auth'
+
+/** POST /api/auth/logout：清除会话 Cookie */
+export async function POST() {
+  const res = NextResponse.json({ ok: true })
+  res.cookies.set(SESSION_COOKIE, '', { httpOnly: true, path: '/', maxAge: 0 })
+  return res
+}

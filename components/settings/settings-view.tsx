@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { DatabaseBackup, Loader2, PlugZap, ReceiptText, Save, ShieldCheck, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch'
 import { PageHeader } from '@/components/common/page-header'
 import { SectionCard } from '@/components/common/section-card'
 import { useDemoStore } from '@/components/providers/demo-store'
+import { downloadJson, todaySuffix } from '@/lib/export-csv'
 
 const roundingOptions = [
   { value: 'none', label: '不抹零', hint: '按应收金额原样收取' },
@@ -19,35 +20,80 @@ const roundingOptions = [
 ]
 
 export function SettingsView() {
-  const { products, updateProduct, meituanConnected, setMeituanConnected, currentStore } = useDemoStore()
+  const {
+    products,
+    saleOrders,
+    refunds,
+    purchaseOrders,
+    stockInRecords,
+    supplierList,
+    staffList,
+    storeList,
+    priceLogs,
+    settings,
+    hydrated,
+    applySafetyStock,
+    saveSetting,
+    meituanConnected,
+    setMeituanConnected,
+    currentStore,
+  } = useDemoStore()
   const [receiptTitle, setReceiptTitle] = useState(`店管家 · ${currentStore.name}`)
   const [rounding, setRounding] = useState('jiao')
   const [safetyStock, setSafetyStock] = useState('30')
   const [saving, setSaving] = useState(false)
   const [applying, setApplying] = useState(false)
+  const restored = useRef(false)
 
-  const applySafetyStock = () => {
+  // 数据库连通后恢复已保存的设置
+  useEffect(() => {
+    if (!hydrated || restored.current) return
+    restored.current = true
+    setReceiptTitle(settings.receiptTitle || `店管家 · ${currentStore.name}`)
+    setRounding(settings.rounding || 'jiao')
+    setSafetyStock(settings.safetyStockDefault || '30')
+  }, [hydrated, settings, currentStore])
+
+  const applySafetyStockAll = async () => {
     const num = Number(safetyStock)
     if (safetyStock.trim() === '' || Number.isNaN(num) || num < 0 || num > 9999) {
       toast.info('请输入正确的默认安全库存', { description: '需为 0 到 9999 之间的整数' })
       return
     }
     setApplying(true)
-    setTimeout(() => {
-      products.forEach((p) => updateProduct(p.id, { safetyStock: Math.round(num) }))
-      setApplying(false)
-      toast.success(`已将默认安全库存 ${Math.round(num)} 应用到全部 ${products.length} 个商品`, {
-        description: '库存预警将按新的安全库存重新判定',
-      })
-    }, 500)
+    await applySafetyStock(Math.round(num))
+    setApplying(false)
+    toast.success(`已将默认安全库存 ${Math.round(num)} 应用到全部 ${products.length} 个商品`, {
+      description: '库存预警将按新的安全库存重新判定',
+    })
   }
 
-  const save = () => {
+  const save = async () => {
     setSaving(true)
-    setTimeout(() => {
-      setSaving(false)
-      toast.success('设置已保存', { description: '演示环境：设置仅在当前会话生效，刷新后恢复默认' })
-    }, 400)
+    await Promise.all([
+      saveSetting('receiptTitle', receiptTitle),
+      saveSetting('rounding', rounding),
+      saveSetting('safetyStockDefault', safetyStock.trim() === '' ? '30' : safetyStock),
+    ])
+    setSaving(false)
+    toast.success('设置已保存', { description: '已写入数据库，刷新页面后仍然生效' })
+  }
+
+  const exportBackup = () => {
+    downloadJson(`店管家数据备份_${todaySuffix()}`, {
+      exportedAt: new Date().toISOString(),
+      settings,
+      products,
+      saleOrders,
+      refunds,
+      purchaseOrders,
+      stockInRecords,
+      suppliers: supplierList,
+      staff: staffList,
+      stores: storeList,
+      priceLogs,
+    })
+    toast.success('数据备份已导出', { description: `店管家数据备份_${todaySuffix()}.json（商品、订单、库存与设置完整备份）` })
   }
 
   return (
@@ -96,7 +142,7 @@ export function SettingsView() {
               <Label className="mb-1.5 text-xs font-normal text-muted-foreground">默认安全库存（件）</Label>
               <div className="flex items-center gap-2">
                 <Input value={safetyStock} onChange={(e) => setSafetyStock(e.target.value)} className="h-9 w-32" inputMode="numeric" aria-label="默认安全库存" />
-                <Button variant="outline" className="h-9" disabled={applying} onClick={applySafetyStock}>
+                <Button variant="outline" className="h-9" disabled={applying} onClick={applySafetyStockAll}>
                   {applying && <Loader2 className="animate-spin" data-icon="inline-start" />}
                   应用到全部商品
                 </Button>
@@ -116,14 +162,10 @@ export function SettingsView() {
                 <DatabaseBackup className="size-4 text-muted-foreground" aria-hidden="true" />
                 <div>
                   <p className="text-[13px] font-medium text-foreground">导出数据备份</p>
-                  <p className="text-xs text-muted-foreground">商品、库存与销售流水的完整备份（CSV）</p>
+                  <p className="text-xs text-muted-foreground">商品、订单、库存与设置的完整备份（JSON）</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast.success('数据备份已导出', { description: '店管家数据备份_20261020.zip（演示文件，未实际下载）' })}
-              >
+              <Button variant="outline" size="sm" onClick={exportBackup}>
                 导出备份
               </Button>
             </div>

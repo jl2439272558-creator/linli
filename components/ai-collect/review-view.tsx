@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, CircleHelp, ClipboardCheck, Crop, ImagePlus, Loader2, RefreshCw, SkipForward, Sparkles, Store, X } from 'lucide-react'
+import { ArrowLeft, Check, CircleHelp, ClipboardCheck, ImagePlus, Loader2, RefreshCw, SkipForward, Sparkles, Store, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,7 @@ import { StatusBadge, type Tone } from '@/components/common/status-badge'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { categories, suppliers, type FieldOrigin, type ReviewItem, type ReviewStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { pickAndUploadImage } from '@/lib/upload'
 import { cn } from '@/lib/utils'
 
 const originMeta: Record<FieldOrigin, { label: string; tone: Tone; dot: string; hint: string }> = {
@@ -59,12 +60,13 @@ function rows(item: ReviewItem): Row[] {
 
 export function ReviewView({ taskId }: { taskId?: string }) {
   const router = useRouter()
-  const { reviewItems, updateReviewItem, setReviewItems, addProduct, tasks } = useDemoStore()
+  const { reviewItems, updateReviewItem, addProduct, tasks } = useDemoStore()
 
   const [scope, setScope] = useState<'pending' | 'all' | 'done'>('pending')
   const [activeId, setActiveId] = useState<string | null>(null)
   const [edit, setEdit] = useState<{ key: FieldKey; value: string } | null>(null)
   const [mainImage, setMainImage] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [reRunning, setReRunning] = useState(false)
 
@@ -94,6 +96,24 @@ export function ReviewView({ taskId }: { taskId?: string }) {
     setActiveId(id)
     setEdit(null)
     setMainImage(null)
+  }
+
+  /** 真实上传替换主图：落盘后同步写入识别记录，入库时沿用该图 */
+  const replaceImage = async () => {
+    if (!active || uploading) return
+    setUploading(true)
+    try {
+      const url = await pickAndUploadImage()
+      if (url) {
+        setMainImage(url)
+        updateReviewItem(active.id, { image: url })
+        toast.success('主图已替换', { description: '已写入识别记录，入库商品将使用该图' })
+      }
+    } catch (err) {
+      toast.error('上传失败', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const saveEdit = () => {
@@ -144,7 +164,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
   const importOne = (item: ReviewItem) => {
     addProduct({
       name: item.name.value ?? '未命名商品',
-      image: item.image,
+      image: mainImage ?? item.image,
       barcode: item.barcode.origin === 'pending' ? null : item.barcode.value,
       category: item.category.value ?? categories[0],
       brand: item.brand.value ?? '未设置',
@@ -171,7 +191,7 @@ export function ReviewView({ taskId }: { taskId?: string }) {
     setImporting(true)
     setTimeout(() => {
       ok.forEach(importOne)
-      setReviewItems((prev) => prev.map((r) => (ok.some((o) => o.id === r.id) ? { ...r, status: '已入库' } : r)))
+      ok.forEach((r) => updateReviewItem(r.id, { status: '已入库' }))
       setImporting(false)
       const blocked = items.length - ok.length
       if (active) {
@@ -340,15 +360,18 @@ export function ReviewView({ taskId }: { taskId?: string }) {
                       )}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Button variant="outline" className="h-8" onClick={() => toast.info('替换主图', { description: '演示版本未接入文件存储' })}>
+                      <Button variant="outline" className="h-8" disabled={uploading} onClick={replaceImage}>
                         <ImagePlus data-icon="inline-start" />
                         替换主图
                       </Button>
-                      <Button variant="outline" className="h-8" onClick={() => toast.info('图片裁切', { description: '演示版本未接入裁切工具，将按原始比例保存' })}>
-                        <Crop data-icon="inline-start" />
-                        裁切
-                      </Button>
-                      <Button variant="ghost" className="h-8 text-muted-foreground" onClick={() => { setMainImage(null); toast.info('已恢复为识别原图') }}>
+                      <Button
+                        variant="ghost"
+                        className="h-8 text-muted-foreground"
+                        onClick={() => {
+                          setMainImage(null)
+                          toast.info('已恢复为识别原图')
+                        }}
+                      >
                         <X data-icon="inline-start" />
                         恢复原图
                       </Button>

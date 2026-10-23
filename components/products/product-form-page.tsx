@@ -15,6 +15,7 @@ import { PageHeader } from '@/components/common/page-header'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { brands, categories, getStockStatus, suppliers, units, type Product } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { pickAndUploadImage } from '@/lib/upload'
 import { cn } from '@/lib/utils'
 import { stockTone } from './stock-tone'
 import { BarcodeScanDialog, type BarcodeScanResult } from './barcode-scan-dialog'
@@ -85,6 +86,8 @@ export function ProductFormPage({ productId }: { productId?: string }) {
 
   const [form, setForm] = useState<FormState>(() => (editing ? toForm(editing) : emptyForm))
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+  const [image, setImage] = useState<string | null>(editing?.image ?? null)
+  const [uploading, setUploading] = useState(false)
   const [aiLoading, setAiLoading] = useState(false)
   const [aiApplied, setAiApplied] = useState<string[]>([])
   const [scanOpen, setScanOpen] = useState(false)
@@ -94,8 +97,26 @@ export function ProductFormPage({ productId }: { productId?: string }) {
     setPrevId(id)
     const next = id ? products.find((p) => p.id === id) ?? null : null
     setForm(next ? toForm(next) : emptyForm)
+    setImage(next?.image ?? null)
     setErrors({})
     setAiApplied([])
+  }
+
+  /** 真实上传主图：选择文件 → 上传至服务器 → 写入表单 */
+  const uploadMain = async () => {
+    if (uploading) return
+    setUploading(true)
+    try {
+      const url = await pickAndUploadImage()
+      if (url) {
+        setImage(url)
+        toast.success('主图已上传', { description: '保存商品后生效，图片已存入服务器' })
+      }
+    } catch (err) {
+      toast.error('上传失败', { description: err instanceof Error ? err.message : String(err) })
+    } finally {
+      setUploading(false)
+    }
   }
 
   const binding = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,17 +215,18 @@ export function ProductFormPage({ productId }: { productId?: string }) {
     }
     const data = { ...payload(), status: mode === 'draft' ? ('停售' as const) : form.status }
     if (editing) {
-      updateProduct(editing.id, data)
+      updateProduct(editing.id, { ...data, image })
       toast.success('商品信息已保存', { description: `${data.name} · 已人工确认` })
       if (mode === 'saveAndNew') {
         setForm(emptyForm)
+        setImage(null)
         router.replace('/products/new')
       } else {
         router.push('/products')
       }
       return
     }
-    addProduct({ ...data, image: null, source: '手动录入' })
+    addProduct({ ...data, image, source: '手动录入' })
     toast.success(mode === 'draft' ? '草稿已保存' : '商品已新增', {
       description: mode === 'draft' ? `${data.name} 以「停售」状态保存，可在商品管理中启用` : `${data.name} 已加入商品库`,
     })
@@ -397,9 +419,9 @@ export function ProductFormPage({ productId }: { productId?: string }) {
           >
             <div className="flex gap-4">
               <div className="flex flex-col items-center gap-2">
-                {editing?.image ? (
+                {image ? (
                   <>
-                    <ProductThumb src={editing.image} alt={editing.name} size={112} />
+                    <ProductThumb src={image} alt={form.name || '商品主图'} size={112} />
                     <span className="inline-flex items-center gap-1 rounded bg-brand-soft px-1.5 py-0.5 text-[11px] text-primary">
                       <Star className="size-3" aria-hidden="true" />
                       当前主图
@@ -408,27 +430,30 @@ export function ProductFormPage({ productId }: { productId?: string }) {
                 ) : (
                   <button
                     type="button"
-                    onClick={() => toast.info('上传商品图片', { description: '演示版本未接入文件存储，图片仅在本地预览' })}
-                    className="flex size-28 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/40 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                    disabled={uploading}
+                    onClick={uploadMain}
+                    className="flex size-28 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-input bg-muted/40 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary disabled:opacity-60"
                   >
-                    <ImagePlus className="size-5" strokeWidth={1.5} aria-hidden="true" />
-                    上传主图
+                    {uploading ? <Loader2 className="size-5 animate-spin" strokeWidth={1.5} aria-hidden="true" /> : <ImagePlus className="size-5" strokeWidth={1.5} aria-hidden="true" />}
+                    {uploading ? '上传中…' : '上传主图'}
                   </button>
                 )}
               </div>
               <div className="flex min-w-0 flex-1 flex-col gap-3">
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" className="h-8" onClick={() => toast.info('替换主图', { description: '请选择 800×800 以内的白底商品图（演示）' })}>
+                  <Button variant="outline" className="h-8" disabled={uploading} onClick={uploadMain}>
                     <ImagePlus data-icon="inline-start" />
-                    替换主图
+                    {image ? '替换主图' : '上传主图'}
                   </Button>
-                  <Button variant="outline" className="h-8" onClick={() => toast.info('图片裁切', { description: '演示版本未接入裁切工具' })}>
-                    裁切
-                  </Button>
-                  <Button variant="outline" className="h-8" onClick={() => toast.info('附加图片', { description: '可上传包装背面、成分表等图片（演示）' })}>
-                    添加附加图片
-                  </Button>
-                  <Button variant="ghost" className="h-8 text-muted-foreground" onClick={() => toast.info('已移除图片', { description: '演示版本未保存实际图片' })}>
+                  <Button
+                    variant="ghost"
+                    className="h-8 text-muted-foreground"
+                    disabled={!image}
+                    onClick={() => {
+                      setImage(null)
+                      toast.success('已移除主图', { description: '保存商品后生效' })
+                    }}
+                  >
                     <Trash2 data-icon="inline-start" />
                     移除
                   </Button>

@@ -51,7 +51,7 @@ export function PricingAdjustDialog({ ids, onOpenChange, onDone }: { ids: string
 }
 
 function AdjustForm({ ids, onDone }: { ids: string[]; onDone: () => void }) {
-  const { products, updateProduct, addPriceLog } = useDemoStore()
+  const { products, bulkPriceAdjust } = useDemoStore()
   const targets = products.filter((p) => ids.includes(p.id))
   const [field, setField] = useState<PriceField>('零售价')
   const [mode, setMode] = useState('percent')
@@ -98,7 +98,7 @@ function AdjustForm({ ids, onDone }: { ids: string[]; onDone: () => void }) {
     return `设定为 ${num.toFixed(2)} 元`
   }
 
-  const submit = () => {
+  const submit = async () => {
     if (invalidMessage) {
       toast.info(invalidMessage)
       return
@@ -108,20 +108,27 @@ function AdjustForm({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      affected.forEach(({ p, next }) => updateProduct(p.id, { [fieldConfig.key]: next }))
-      addPriceLog({
+    const changes: Record<string, number> = {}
+    affected.forEach(({ p, next }) => {
+      if (next !== null) changes[p.id] = next
+    })
+    // 单事务：批量写价 + 生成调价记录
+    await bulkPriceAdjust({
+      ids: Object.keys(changes),
+      field: fieldConfig.key,
+      changes,
+      log: {
         field,
         mode: modeText(),
         scope: targets.length > 1 ? `手动选择 ${targets.length} 个商品` : `单品：${targets[0].name}`,
         affected: affected.length,
-      })
-      setSaving(false)
-      onDone()
-      toast.success(`已调整 ${affected.length} 个商品的${field}`, {
-        description: affected.length < targets.length ? `另有 ${targets.length - affected.length} 个商品因缺少价格信息未调整` : '调价记录已保存',
-      })
-    }, 500)
+      },
+    })
+    setSaving(false)
+    onDone()
+    toast.success(`已调整 ${affected.length} 个商品的${field}`, {
+      description: affected.length < targets.length ? `另有 ${targets.length - affected.length} 个商品因缺少价格信息未调整` : '调价记录已保存',
+    })
   }
 
   return (

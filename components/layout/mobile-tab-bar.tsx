@@ -4,12 +4,14 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Boxes, LayoutDashboard, Menu, Package, WalletCards } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { hasPermission } from '@/lib/authz'
+import { useAuth } from '@/components/providers/auth-provider'
 
 /**
  * 手机端底部导航：工作台 / 商品 / 库存 / 收银 / 更多（打开完整菜单抽屉）。
  * 桌面端隐藏（md:hidden）；高度 56px + iOS 底部安全区。
  */
-const tabs = [
+const allTabs = [
   { label: '工作台', href: '/', icon: LayoutDashboard, match: (p: string) => p === '/' },
   { label: '商品', href: '/products', icon: Package, match: (p: string) => p.startsWith('/products') || p.startsWith('/ai-collect') || p.startsWith('/ai-review') || p.startsWith('/categories') || p.startsWith('/brands') || p.startsWith('/pricing') },
   { label: '库存', href: '/inventory', icon: Boxes, match: (p: string) => p.startsWith('/inventory') || p.startsWith('/stock-in') || p.startsWith('/purchase') || p.startsWith('/stock-alerts') || p.startsWith('/suppliers') },
@@ -18,6 +20,9 @@ const tabs = [
 
 export function MobileTabBar({ onOpenNav }: { onOpenNav: () => void }) {
   const pathname = usePathname()
+  const { user } = useAuth()
+  // 按角色权限过滤底部 Tab：无权访问的入口不展示
+  const tabs = allTabs.filter((t) => hasPermission(user.role, t.href))
   const inMainTabs = tabs.some((t) => t.match(pathname))
 
   return (
@@ -25,7 +30,10 @@ export function MobileTabBar({ onOpenNav }: { onOpenNav: () => void }) {
       aria-label="底部导航"
       className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-sm md:hidden"
     >
-      <ul className="mx-auto grid h-14 max-w-md grid-cols-5">
+      <ul
+        className="mx-auto grid h-14 max-w-md"
+        style={{ gridTemplateColumns: `repeat(${tabs.length + 1}, minmax(0, 1fr))` }}
+      >
         {tabs.map((t) => {
           const active = t.match(pathname)
           const Icon = t.icon

@@ -15,6 +15,7 @@ import { SectionCard } from '@/components/common/section-card'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { stockInStatusTone, type PurchaseItem, type StockInRecord, type StockInStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 import { cn } from '@/lib/utils'
 
 type Line = {
@@ -31,7 +32,7 @@ type Line = {
 }
 
 export function StockInView() {
-  const { products, purchaseOrders, updatePurchaseOrder, addStockInRecord, stockInRecords, adjustStock } = useDemoStore()
+  const { products, purchaseOrders, stockInRecords, confirmStockIn } = useDemoStore()
   const [code, setCode] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [orderId, setOrderId] = useState<string | null>(null)
@@ -106,7 +107,7 @@ export function StockInView() {
   const totalReceive = receivable.reduce((s, r) => s + r.receive, 0)
   const totalAmount = receivable.reduce((s, r) => s + r.receive * (r.price ?? 0), 0)
 
-  const confirm = () => {
+  const confirm = async () => {
     if (!receivable.length) {
       toast.info('请先填写实收数量', { description: '实收数量为 0 的行不会入库' })
       return
@@ -117,43 +118,15 @@ export function StockInView() {
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      receivable.forEach((r) => adjustStock(r.productId, r.receive))
-      const status: StockInStatus = rows.every((r) => r.status === '已入库') ? '已入库' : '部分入库'
-      const record = addStockInRecord({
-        orderId,
-        supplier: orderId ? purchaseOrders.find((o) => o.id === orderId)?.supplier ?? '未指定供应商' : '未关联采购单',
-        status,
-        items: rows.map<PurchaseItem>((r) => ({
-          productId: r.productId,
-          name: r.name,
-          spec: r.spec,
-          unit: r.unit,
-          quantity: r.orderedQty ?? r.receive,
-          received: r.alreadyIn + r.receive,
-          price: r.price ?? 0,
-        })),
-      })
-      if (orderId) {
-        const order = purchaseOrders.find((o) => o.id === orderId)
-        if (order) {
-          const merged = order.items.map((i) => {
-            const line = rows.find((r) => r.productId === i.productId)
-            return line ? { ...i, received: i.received + line.receive } : i
-          })
-          updatePurchaseOrder(orderId, {
-            items: merged,
-            status: merged.every((i) => i.received >= i.quantity) ? '已入库' : '部分入库',
-          })
-        }
-      }
-      setSaving(false)
-      setLines([])
-      setOrderId(null)
-      toast.success(`入库完成：${receivable.length} 个商品，实收 ${totalReceive} 件`, {
-        description: `${record.id} · 入库金额 ${formatMoney(totalAmount)}`,
-      })
-    }, 700)
+    // 单事务：加库存 + 写入库单 + 回写采购单，失败自动回滚
+    const record = await confirmStockIn(orderId, rows)
+    setSaving(false)
+    if (!record) return
+    setLines([])
+    setOrderId(null)
+    toast.success(`入库完成：${receivable.length} 个商品，实收 ${totalReceive} 件`, {
+      description: `${record.id} · 入库金额 ${formatMoney(totalAmount)}`,
+    })
   }
 
   return (
@@ -167,7 +140,21 @@ export function StockInView() {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${stockInRecords.length} 条入库记录`, { description: '入库记录_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() =>
+                downloadCsv(
+                  `入库记录_${todaySuffix()}`,
+                  ['入库单号', '关联采购单', '供应商', '状态', '到货时间', '操作人', '商品明细'],
+                  stockInRecords.map((r) => [
+                    r.id,
+                    r.orderId ?? '',
+                    r.supplier,
+                    r.status,
+                    r.arrivedAt,
+                    r.operator,
+                    r.items.map((i) => `${i.name} x${i.received}/${i.quantity}`).join(' / '),
+                  ]),
+                )
+              }
             >
               <Download data-icon="inline-start" />
               导出记录

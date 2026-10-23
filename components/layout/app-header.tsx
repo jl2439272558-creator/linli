@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useDemoStore } from '@/components/providers/demo-store'
+import { useAuth } from '@/components/providers/auth-provider'
 import { members, notifications as initialNotifications, stores } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,7 @@ type Hit = { key: string; kind: '商品' | '订单' | '会员'; title: string; s
 export function AppHeader({ onOpenNav }: { onOpenNav: () => void }) {
   const router = useRouter()
   const { storeId, setStoreId, currentStore, products, saleOrders } = useDemoStore()
+  const { user, can, logout } = useAuth()
   const [query, setQuery] = useState('')
   const [focused, setFocused] = useState(false)
   const [cursor, setCursor] = useState(0)
@@ -314,27 +316,31 @@ export function AppHeader({ onOpenNav }: { onOpenNav: () => void }) {
             render={
               <button type="button" className="flex items-center gap-2.5 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted">
                 <Avatar className="size-8">
-                  <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">王</AvatarFallback>
+                  <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">{user.name.slice(0, 1)}</AvatarFallback>
                 </Avatar>
                 <div className="hidden flex-col items-start leading-tight md:flex">
-                  <span className="text-[13px] font-medium">王建国</span>
-                  <span className="text-[11px] text-muted-foreground">店长 · 管理员</span>
+                  <span className="text-[13px] font-medium">{user.name}</span>
+                  <span className="text-[11px] text-muted-foreground">{user.role}</span>
                 </div>
                 <ChevronDown className="hidden size-3.5 text-muted-foreground md:block" aria-hidden="true" />
               </button>
             }
           />
           <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => router.push('/staff')}>
-              <UserRound aria-hidden="true" />
-              个人信息
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/settings')}>
-              <Settings aria-hidden="true" />
-              基础设置
-            </DropdownMenuItem>
+            {can('系统设置') && (
+              <DropdownMenuItem onClick={() => router.push('/staff')}>
+                <UserRound aria-hidden="true" />
+                个人信息
+              </DropdownMenuItem>
+            )}
+            {can('系统设置') && (
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <Settings aria-hidden="true" />
+                基础设置
+              </DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => toast.info('演示模式', { description: '当前为 UI 演示原型，未接入登录系统' })}>
+            <DropdownMenuItem onClick={() => void logout()}>
               <LogOut aria-hidden="true" />
               退出登录
             </DropdownMenuItem>

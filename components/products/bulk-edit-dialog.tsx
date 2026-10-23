@@ -41,7 +41,7 @@ export function BulkEditDialog({
   onOpenChange: (mode: BulkMode) => void
   onDone: () => void
 }) {
-  const { products, updateProduct } = useDemoStore()
+  const { products, bulkPriceAdjust, bulkUpdateProducts } = useDemoStore()
   const targets = products.filter((p) => ids.includes(p.id))
   const [strategy, setStrategy] = useState('percent')
   const [value, setValue] = useState('-5')
@@ -61,7 +61,7 @@ export function BulkEditDialog({
 
   const preview = targets.slice(0, 6).map((p) => ({ p, next: invalidMessage ? null : nextPrice(p, strategy, num) }))
 
-  const submit = () => {
+  const submit = async () => {
     if (!targets.length) {
       toast.info('请先选择要批量处理的商品')
       return
@@ -71,35 +71,52 @@ export function BulkEditDialog({
         toast.info(invalidMessage)
         return
       }
-      const changed = preview.filter((r) => r.next !== null).length
-      const totalChanged = targets.filter((p) => nextPrice(p, strategy, num) !== null).length
+      const changes: Record<string, number> = {}
+      targets.forEach((p) => {
+        const next = nextPrice(p, strategy, num)
+        if (next !== null) changes[p.id] = next
+      })
+      const totalChanged = Object.keys(changes).length
       if (!totalChanged) {
         toast.info('所选商品无法按该规则调价', { description: '商品缺少进货价或零售价，请改用其他方式' })
         return
       }
       setSaving(true)
-      setTimeout(() => {
-        targets.forEach((p) => {
-          const next = nextPrice(p, strategy, num)
-          if (next !== null) updateProduct(p.id, { retailPrice: next })
-        })
-        setSaving(false)
-        onOpenChange(null)
-        onDone()
-        toast.success(`已调整 ${totalChanged} 个商品的零售价`, {
-          description: changed < targets.length ? `另有 ${targets.length - changed} 个商品因缺少价格信息未调整` : '可在价格管理中查看调价记录',
-        })
-      }, 500)
-      return
-    }
-    setSaving(true)
-    setTimeout(() => {
-      targets.forEach((p) => updateProduct(p.id, { category }))
+      const modeText =
+        strategy === 'fix'
+          ? `统一设为 ${num} 元`
+          : strategy === 'percent'
+            ? `按比例 ${num >= 0 ? '+' : ''}${num}%`
+            : `按目标毛利率 ${num}%`
+      // 单事务：批量写价 + 生成调价记录
+      await bulkPriceAdjust({
+        ids: Object.keys(changes),
+        field: 'retailPrice',
+        changes,
+        log: {
+          field: '零售价',
+          mode: modeText,
+          scope: `手动选择 ${targets.length} 个商品`,
+          affected: totalChanged,
+        },
+      })
       setSaving(false)
       onOpenChange(null)
       onDone()
-      toast.success(`已将 ${targets.length} 个商品归类为「${category}」`)
-    }, 400)
+      toast.success(`已调整 ${totalChanged} 个商品的零售价`, {
+        description: totalChanged < targets.length ? `另有 ${targets.length - totalChanged} 个商品因缺少价格信息未调整` : '可在价格管理中查看调价记录',
+      })
+      return
+    }
+    setSaving(true)
+    await bulkUpdateProducts(
+      targets.map((p) => p.id),
+      { category },
+    )
+    setSaving(false)
+    onOpenChange(null)
+    onDone()
+    toast.success(`已将 ${targets.length} 个商品归类为「${category}」`)
   }
 
   return (

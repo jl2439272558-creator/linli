@@ -1,16 +1,18 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
-import { Banknote, Minus, PackageX, Plus, Printer, ScanLine, ShoppingCart, Trash2, UserRound, X } from 'lucide-react'
+import { ArchiveRestore, Banknote, Minus, PackageX, Pause, Plus, Printer, ScanLine, ShoppingCart, Trash2, UserRound, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { PageHeader } from '@/components/common/page-header'
 import { ProductThumb } from '@/components/common/product-thumb'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { categories, getStockStatus, members, payMethods, type PayMethod, type Product } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { printReceipt } from '@/lib/print-receipt'
 import { cn } from '@/lib/utils'
 
 type CartLine = { productId: string; name: string; price: number; unit: string; qty: number; stock: number }
@@ -18,7 +20,7 @@ type CartLine = { productId: string; name: string; price: number; unit: string; 
 const MEMBER_RATE = 0.05
 
 export function CashierView() {
-  const { products, currentStore, addSaleOrder, adjustStock } = useDemoStore()
+  const { products, currentStore, checkoutSale, heldOrders, holdCart, takeHeld } = useDemoStore()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('全部')
   const [cart, setCart] = useState<CartLine[]>([])
@@ -27,6 +29,7 @@ export function CashierView() {
   const [payMethod, setPayMethod] = useState<PayMethod>('微信支付')
   const [roundOff, setRoundOff] = useState(true)
   const [checking, setChecking] = useState(false)
+  const [heldOpen, setHeldOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const sellable = products.filter((p) => p.status === '在售')
@@ -86,35 +89,79 @@ export function CashierView() {
   const total = Math.max(0, rounded)
   const count = cart.reduce((s, l) => s + l.qty, 0)
 
-  const checkout = () => {
+  const checkout = async () => {
     if (!cart.length) {
       toast.info('购物清单为空', { description: '请先扫描或选择商品' })
       return
     }
     const chosen = members.find((m) => m.id === memberId)
     setChecking(true)
-    setTimeout(() => {
-      const order = addSaleOrder({
-        items: cart.map((l) => ({ productId: l.productId, name: l.name, unit: l.unit, price: l.price, quantity: l.qty })),
-        amount: subtotal,
-        discount: Math.round((subtotal - total) * 100) / 100,
-        paid: total,
-        payMethod,
-        cashier: '王店长',
-        memberName: member ? (chosen?.name ?? null) : null,
-        memberPhone: member ? (chosen?.phone ?? null) : null,
-        status: '已完成',
-        refunded: 0,
-      })
-      // 结算后扣减库存，退货时在退货退款模块回滚
-      cart.forEach((l) => adjustStock(l.productId, -l.qty))
-      setChecking(false)
-      toast.success(`收款完成 ${formatMoney(total)}`, { description: `${order.id} · ${payMethod} · ${count} 件商品 · 库存已扣减` })
-      toast.success('小票已发送至打印机', { description: '演示交互：未连接真实打印设备' })
-      setCart([])
-      setMember(false)
-      inputRef.current?.focus()
-    }, 600)
+    // 单事务：校验并扣减库存 + 写入销售订单，失败时回滚并提示
+    const order = await checkoutSale({
+      items: cart.map((l) => ({ productId: l.productId, name: l.name, unit: l.unit, price: l.price, quantity: l.qty })),
+      amount: subtotal,
+      discount: Math.round((subtotal - total) * 100) / 100,
+      paid: total,
+      payMethod,
+      cashier: '王店长',
+      memberName: member ? (chosen?.name ?? null) : null,
+      memberPhone: member ? (chosen?.phone ?? null) : null,
+      status: '已完成',
+      refunded: 0,
+    })
+    setChecking(false)
+    if (!order) return
+    toast.success(`收款完成 ${formatMoney(total)}`, { description: `${order.id} · ${payMethod} · ${count} 件商品 · 库存已扣减` })
+    // 结算后自动调起小票打印（浏览器打印窗口可选实体打印机或另存 PDF）
+    const printed = printReceipt({
+      orderId: order.id,
+      createdAt: order.createdAt,
+      cashier: order.cashier,
+      storeName: currentStore.name,
+      items: order.items,
+      amount: order.amount,
+      discount: order.discount,
+      paid: order.paid,
+      payMethod: order.payMethod,
+      memberName: order.memberName,
+      status: order.status,
+    })
+    if (printed) toast.success('小票已发送至打印窗口', { description: '未连接打印机时可另存为 PDF' })
+    else toast.info('浏览器拦截了打印窗口', { description: '允许弹出窗口后可在订单详情重新打印' })
+    setCart([])
+    setMember(false)
+    inputRef.current?.focus()
+  }
+
+  /** 挂单：暂存当前购物车，可随时取回（落库持久化） */
+  const hold = async () => {
+    if (!cart.length) return
+    const chosen = members.find((m) => m.id === memberId)
+    const held = await holdCart({
+      items: cart,
+      amount: total,
+      count,
+      member,
+      memberId: member ? memberId : null,
+      memberName: member ? (chosen?.name ?? null) : null,
+      memberPhone: member ? (chosen?.phone ?? null) : null,
+    })
+    if (!held) return
+    setCart([])
+    setMember(false)
+    toast.success('已挂单', { description: `${held.id} · ${held.count} 件商品 · 可通过「取单」取回` })
+  }
+
+  /** 取单：恢复挂单内容并从挂单列表移除 */
+  const take = (id: string) => {
+    const held = takeHeld(id)
+    if (!held) return
+    setCart(held.items)
+    setMember(held.member)
+    if (held.memberId) setMemberId(held.memberId)
+    setHeldOpen(false)
+    toast.success(`已取回挂单 ${held.id}`, { description: `${held.count} 件商品 · ${formatMoney(held.amount)}` })
+    inputRef.current?.focus()
   }
 
   return (
@@ -124,17 +171,52 @@ export function CashierView() {
         breadcrumbs={[{ label: '销售收银' }, { label: '收银管理' }]}
         description={`${currentStore.name} · 支持扫码枪、键盘与鼠标操作`}
         actions={
-          <Button
-            variant="outline"
-            className="h-9"
-            disabled={!cart.length}
-            onClick={() => toast.info('已挂单', { description: `当前 ${count} 件商品已暂存，可在收银记录中取回（演示交互）` })}
-          >
-            <ShoppingCart data-icon="inline-start" />
-            挂单
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="h-9" onClick={() => setHeldOpen(true)}>
+              <ArchiveRestore data-icon="inline-start" />
+              取单{heldOrders.length > 0 ? `（${heldOrders.length}）` : ''}
+            </Button>
+            <Button variant="outline" className="h-9" disabled={!cart.length} onClick={hold}>
+              <Pause data-icon="inline-start" />
+              挂单
+            </Button>
+          </div>
         }
       />
+
+      <Sheet open={heldOpen} onOpenChange={setHeldOpen}>
+        <SheetContent side="right">
+          <SheetHeader>
+            <SheetTitle>挂单列表</SheetTitle>
+            <SheetDescription>暂存的购物车按时间倒序展示，取单后恢复到当前清单</SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
+            {heldOrders.length === 0 ? (
+              <p className="py-12 text-center text-sm text-muted-foreground">当前没有挂单</p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {heldOrders.map((h) => (
+                  <li key={h.id} className="rounded-lg border border-border bg-background p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[13px] font-medium text-foreground">{h.id}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums">{h.createdAt}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {h.count} 件商品 · {formatMoney(h.amount)}
+                      {h.memberName ? ` · 会员 ${h.memberName}` : ''}
+                    </p>
+                    <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{h.items.map((i) => `${i.name}×${i.qty}`).join('、')}</p>
+                    <Button variant="outline" size="sm" className="mt-2 h-8" onClick={() => take(h.id)}>
+                      <ArchiveRestore data-icon="inline-start" />
+                      取单
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3 md:gap-4">
         <section aria-label="商品选择" className="flex flex-col rounded-xl border border-border bg-card md:col-span-2">
@@ -366,7 +448,7 @@ export function CashierView() {
             </Button>
             <p className="mt-2 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
               <Printer className="size-3" aria-hidden="true" />
-              结算后将自动打印小票（演示交互，未连接真实设备）
+              结算后自动调起小票打印，可选择打印机或另存为 PDF
             </p>
           </div>
         </div>

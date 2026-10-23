@@ -15,13 +15,15 @@ import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { payMethods, saleOrderStatusTone, type SaleOrder, type SaleOrderStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
+import { printReceipt } from '@/lib/print-receipt'
 import { cn } from '@/lib/utils'
 
 const ALL = 'all'
 const statuses: SaleOrderStatus[] = ['已完成', '部分退款', '已退款']
 
 export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
-  const { saleOrders } = useDemoStore()
+  const { saleOrders, currentStore } = useDemoStore()
   const [query, setQuery] = useState(initialQuery)
   const [pay, setPay] = useState(ALL)
   const [status, setStatus] = useState(ALL)
@@ -52,7 +54,10 @@ export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
   const rows = filtered.slice((current - 1) * pageSize, current * pageSize)
   const hasFilter = !!query || pay !== ALL || status !== ALL
 
-  const todayOrders = saleOrders.filter((o) => o.createdAt.startsWith('2026-10-20'))
+  const now = new Date()
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  const todayPrefix = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`
+  const todayOrders = saleOrders.filter((o) => o.createdAt.startsWith(todayPrefix))
   const todayPaid = todayOrders.reduce((s, o) => s + o.paid, 0)
   const refundedOrders = saleOrders.filter((o) => o.status !== '已完成')
   const refundedAmount = saleOrders.reduce((s, o) => s + o.refunded, 0)
@@ -66,7 +71,7 @@ export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
   }
 
   const stats: StatItem[] = [
-    { label: '今日订单数', value: `${todayOrders.length} 笔`, icon: ReceiptText, tone: 'bg-brand-soft text-primary', hint: '演示数据：仅展示部分流水' },
+    { label: '今日订单数', value: `${todayOrders.length} 笔`, icon: ReceiptText, tone: 'bg-brand-soft text-primary', hint: '按当日收银流水统计' },
     { label: '今日实收金额', value: formatMoney(todayPaid), icon: Banknote, tone: 'bg-info-soft text-info', hint: `客单价 ${formatMoney(todayOrders.length ? todayPaid / todayOrders.length : 0)}` },
     { label: '退款订单数', value: `${refundedOrders.length} 笔`, icon: Undo2, tone: 'bg-warning-soft text-warning', hint: `退款金额 ${formatMoney(refundedAmount)}` },
     { label: '当前筛选客单价', value: formatMoney(avgTicket), icon: ReceiptText, tone: 'bg-ai-soft text-ai', hint: `共 ${filtered.length} 笔订单` },
@@ -83,7 +88,25 @@ export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${filtered.length} 笔订单`, { description: '销售订单_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() =>
+                downloadCsv(
+                  `销售订单_${todaySuffix()}`,
+                  ['订单号', '创建时间', '商品明细', '应收金额', '优惠金额', '实收金额', '支付方式', '收银员', '会员', '状态', '累计退款'],
+                  filtered.map((o) => [
+                    o.id,
+                    o.createdAt,
+                    o.items.map((i) => `${i.name} x${i.quantity}`).join(' / '),
+                    o.amount,
+                    o.discount,
+                    o.paid,
+                    o.payMethod,
+                    o.cashier,
+                    o.memberName ?? '',
+                    o.status,
+                    o.refunded,
+                  ]),
+                )
+              }
             >
               <Download data-icon="inline-start" />
               导出数据
@@ -227,7 +250,7 @@ export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
           pageSizes={[10, 20, 50]}
         />
         <p className="border-t border-border px-5 py-3 text-[11px] text-muted-foreground">
-          演示数据：仅展示最近 {saleOrders.length} 笔收银流水，与经营工作台的当日汇总口径不同；收银台完成结算后会实时写入本列表。
+          本页展示全部 {saleOrders.length} 笔收银流水（实时数据库），与经营工作台的当日汇总口径不同；收银台完成结算后会实时写入本列表。
         </p>
       </section>
 
@@ -298,9 +321,30 @@ export function OrdersView({ initialQuery = '' }: { initialQuery?: string }) {
               </div>
 
               <SheetFooter className="flex-row justify-end border-t border-border px-6 py-4">
-                <Button variant="outline" className="h-9" onClick={() => toast.success('小票已重新打印', { description: `${detail.id}（演示交互，未连接真实打印机）` })}>
+                <Button
+                  variant="outline"
+                  className="h-9"
+                  onClick={() => {
+                    const ok = printReceipt({
+                      orderId: detail.id,
+                      createdAt: detail.createdAt,
+                      cashier: detail.cashier,
+                      storeName: currentStore.name,
+                      items: detail.items,
+                      amount: detail.amount,
+                      discount: detail.discount,
+                      paid: detail.paid,
+                      payMethod: detail.payMethod,
+                      memberName: detail.memberName,
+                      status: detail.status,
+                      refunded: detail.refunded,
+                    })
+                    if (ok) toast.success('已调起打印', { description: `${detail.id} · 可在打印窗口选择打印机或另存为 PDF` })
+                    else toast.info('浏览器拦截了打印窗口', { description: '请允许本站弹出窗口后重试' })
+                  }}
+                >
                   <Printer data-icon="inline-start" />
-                  重新打印小票
+                  打印小票
                 </Button>
                 <Button className="h-9" disabled={detail.status === '已退款'} render={<Link href={`/refunds?order=${detail.id}`} />} nativeButton={false}>
                   <Undo2 data-icon="inline-start" />

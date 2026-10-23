@@ -30,6 +30,22 @@ const fallback: AssistantTopic = {
   actions: [],
 }
 
+/** 动作未标注目标页时按关键词路由，保证每个建议都能到达可执行的模块 */
+function fallbackHref(label: string): string {
+  const rules: [string[], string][] = [
+    [['补货', '库存', '缺货', '预警'], '/inventory'],
+    [['采购', '进货', '供应商'], '/purchase'],
+    [['定价', '价格', '调价', '毛利'], '/pricing'],
+    [['订单', '流水', '收银'], '/orders'],
+    [['退款', '退货'], '/refunds'],
+    [['商品', 'SKU'], '/products'],
+    [['报表', '分析'], '/reports'],
+    [['设置', '导入', '导出', '备份'], '/settings'],
+  ]
+  const hit = rules.find(([keys]) => keys.some((k) => label.includes(k)))
+  return hit ? hit[1] : '/'
+}
+
 function resolve(question: string): AssistantTopic {
   const q = question.trim()
   if (!q) return fallback
@@ -315,18 +331,18 @@ function AnswerCard({ topic }: { topic: AssistantTopic }) {
 
         {topic.actions.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-2 border-t border-border pt-3">
-            {topic.actions.map((a) =>
-              a.href ? (
-                <Button key={a.label} variant="outline" className="h-8" render={<Link href={a.href} />} nativeButton={false}>
-                  {a.label}
-                  <ArrowUpRight data-icon="inline-end" />
-                </Button>
-              ) : (
-                <Button key={a.label} variant="outline" className="h-8" onClick={() => toast.info(a.label, { description: '演示交互：需人工确认后执行' })}>
-                  {a.label}
-                </Button>
-              ),
-            )}
+            {topic.actions.map((a) => (
+              <Button
+                key={a.label}
+                variant="outline"
+                className="h-8"
+                render={<Link href={a.href ?? fallbackHref(a.label)} />}
+                nativeButton={false}
+              >
+                {a.label}
+                <ArrowUpRight data-icon="inline-end" />
+              </Button>
+            ))}
           </div>
         )}
       </div>

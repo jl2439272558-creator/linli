@@ -1,23 +1,34 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { AppSidebar } from './app-sidebar'
 import { AppHeader } from './app-header'
 import { MobileTabBar } from './mobile-tab-bar'
+import { defaultHome, hasPermission } from '@/lib/authz'
+import { useAuth } from '@/components/providers/auth-provider'
 
 /**
  * 应用外壳：桌面端为「固定侧边栏 + 顶栏」，手机端为「抽屉菜单 + 顶栏 + 底部 TabBar」。
- * 抽屉开合状态在此统一管理；路由切换后自动收起。
+ * 抽屉开合状态在此统一管理；路由切换后自动收起，并按角色权限拦截无权访问的页面。
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [navOpen, setNavOpen] = useState(false)
   const pathname = usePathname()
+  const router = useRouter()
+  const { user } = useAuth()
 
   // 路由切换自动关闭抽屉
   useEffect(() => {
     setNavOpen(false)
   }, [pathname])
+
+  // 权限守卫：当前角色无权访问该路径时跳回角色首页
+  useEffect(() => {
+    if (!hasPermission(user.role, pathname)) {
+      router.replace(defaultHome(user.role))
+    }
+  }, [pathname, router, user.role])
 
   // 抽屉打开时锁定背景滚动，Esc 关闭
   useEffect(() => {

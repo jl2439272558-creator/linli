@@ -16,6 +16,7 @@ import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { categories, getStockStatus, lastInboundAt, stores, type Product, type StockAdjustType } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 import { cn } from '@/lib/utils'
 import { stockTone } from '@/components/products/stock-tone'
 import { StockAdjustDialog } from './stock-adjust-dialog'
@@ -83,7 +84,25 @@ export function InventoryView() {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${filtered.length} 条库存数据`, { description: '库存清单_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() =>
+                downloadCsv(
+                  `库存清单_${todaySuffix()}`,
+                  ['商品编号', '商品名称', '分类', '规格', '当前库存', '安全库存', '库存状态', '单位', '进货价', '库存金额', '最近入库'],
+                  filtered.map((p) => [
+                    p.id,
+                    p.name,
+                    p.category,
+                    p.spec ?? '',
+                    p.stock,
+                    p.safetyStock,
+                    getStockStatus(p),
+                    p.unit,
+                    p.purchasePrice,
+                    Math.round(p.stock * (p.purchasePrice ?? 0) * 100) / 100,
+                    lastInboundAt(stockInRecords, p.id) ?? '',
+                  ]),
+                )
+              }
             >
               <Download data-icon="inline-start" />
               导出数据

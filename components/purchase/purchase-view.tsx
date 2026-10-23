@@ -15,6 +15,7 @@ import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { purchaseStatusTone, suppliers, type PurchaseOrder, type PurchaseStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 import { cn } from '@/lib/utils'
 import { PurchaseDetailDialog, PurchaseFormDialog } from './purchase-form-dialog'
 
@@ -22,7 +23,7 @@ const ALL = 'all'
 const statuses: PurchaseStatus[] = ['草稿', '待确认', '已下单', '部分入库', '已入库', '已取消']
 
 export function PurchaseView() {
-  const { purchaseOrders, updatePurchaseOrder } = useDemoStore()
+  const { purchaseOrders, updatePurchaseOrder, addPurchaseOrder } = useDemoStore()
   const [query, setQuery] = useState('')
   const [supplier, setSupplier] = useState(ALL)
   const [status, setStatus] = useState(ALL)
@@ -48,9 +49,37 @@ export function PurchaseView() {
 
   const amountOf = (o: PurchaseOrder) => o.items.reduce((s, i) => s + i.quantity * i.price, 0)
   const pendingIn = purchaseOrders.filter((o) => o.status === '已下单' || o.status === '部分入库')
+  const monthPrefix = new Date().toISOString().slice(0, 7)
   const monthAmount = purchaseOrders
-    .filter((o) => o.createdAt.startsWith('2026-10') && o.status !== '已取消')
+    .filter((o) => o.createdAt.startsWith(monthPrefix) && o.status !== '已取消')
     .reduce((s, o) => s + amountOf(o), 0)
+
+  const exportOrders = (list: PurchaseOrder[]) =>
+    downloadCsv(
+      `采购单_${todaySuffix()}`,
+      ['采购单号', '供应商', '状态', '预计到货', '创建时间', '操作人', '商品数', '采购金额', '商品明细'],
+      list.map((o) => [
+        o.id,
+        o.supplier,
+        o.status,
+        o.expectedAt,
+        o.createdAt,
+        o.operator,
+        o.items.length,
+        Math.round(amountOf(o) * 100) / 100,
+        o.items.map((i) => `${i.name} x${i.quantity}（已收 ${i.received}）`).join(' / '),
+      ]),
+    )
+
+  const copyAsDraft = async (o: PurchaseOrder) => {
+    const draft = await addPurchaseOrder({
+      supplier: o.supplier,
+      status: '草稿',
+      expectedAt: o.expectedAt,
+      items: o.items.map((i) => ({ ...i, received: 0 })),
+    })
+    toast.success('采购单已复制为草稿', { description: `${draft.id} · 可在列表中继续编辑下单` })
+  }
 
   const reset = () => {
     setQuery('')
@@ -77,7 +106,7 @@ export function PurchaseView() {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${filtered.length} 条采购单`, { description: '采购单列表_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() => exportOrders(filtered)}
             >
               <Download data-icon="inline-start" />
               导出数据
@@ -194,8 +223,8 @@ export function PurchaseView() {
                             <FileText />
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40">
-                            <DropdownMenuItem onClick={() => toast.success('采购单已复制为草稿', { description: `${o.id}（演示交互，未实际生成）` })}>复制为草稿</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => toast.success('已导出采购单 PDF', { description: `${o.id}（演示文件，未实际下载）` })}>导出采购单</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => void copyAsDraft(o)}>复制为草稿</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => exportOrders([o])}>导出采购单</DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
                               disabled={o.status === '已入库' || o.status === '已取消'}

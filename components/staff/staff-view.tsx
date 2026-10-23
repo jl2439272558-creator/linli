@@ -168,9 +168,20 @@ export function StaffView() {
                             编辑
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() =>
-                              toast.success(`已重置「${m.name}」的登录密码`, { description: `新密码已发送至手机尾号 ${m.phone.slice(-4)}（演示）` })
-                            }
+                            onClick={() => {
+                              // 真实重置：服务端写入初始密码，不输出明文以外的凭据
+                              fetch('/api/actions', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'reset-staff-password', payload: { id: m.id } }),
+                              })
+                                .then((r) => r.json())
+                                .then((data: { ok?: boolean; password?: string; error?: string }) => {
+                                  if (data.ok) toast.success(`已重置「${m.name}」的登录密码`, { description: `新密码为 ${data.password}，请告知本人及时修改` })
+                                  else toast.error('重置失败', { description: data.error })
+                                })
+                                .catch((err: unknown) => toast.error('重置失败', { description: err instanceof Error ? err.message : String(err) }))
+                            }}
                           >
                             <KeyRound data-icon="inline-start" />
                             重置密码

@@ -19,6 +19,7 @@ import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { refundReasons, refundStatusTone, type RefundRecord, type RefundStatus } from '@/lib/mock-data'
 import { formatMoney } from '@/lib/format'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 import { cn } from '@/lib/utils'
 
 const ALL = 'all'
@@ -31,7 +32,7 @@ function nowStamp() {
 }
 
 export function RefundsView({ initialOrder }: { initialOrder?: string }) {
-  const { refunds, saleOrders, updateRefund, updateSaleOrder, adjustStock } = useDemoStore()
+  const { refunds, saleOrders, updateRefund, approveRefund } = useDemoStore()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState(ALL)
   const [page, setPage] = useState(1)
@@ -72,22 +73,15 @@ export function RefundsView({ initialOrder }: { initialOrder?: string }) {
     setPage(1)
   }
 
-  const approve = (r: RefundRecord) => {
+  const approve = async (r: RefundRecord) => {
     setHandling(r.id)
-    setTimeout(() => {
-      // 回滚库存 → 更新订单退款金额与状态 → 更新退款单
-      r.items.forEach((i) => adjustStock(i.productId, i.quantity))
-      const order = saleOrders.find((o) => o.id === r.orderId)
-      if (order) {
-        const refunded = Math.round((order.refunded + r.amount) * 100) / 100
-        updateSaleOrder(order.id, { refunded, status: refunded >= order.paid ? '已退款' : '部分退款' })
-      }
-      updateRefund(r.id, { status: '已退款', handledAt: nowStamp(), stockRolledBack: true })
-      setHandling(null)
-      toast.success(`已退款 ${formatMoney(r.amount)}`, {
-        description: `${r.id} · 库存已回滚 ${r.items.reduce((a, i) => a + i.quantity, 0)} 件${order ? ` · 订单 ${order.id} 状态已更新` : ''}`,
-      })
-    }, 600)
+    // 单事务：回滚库存 → 更新订单退款金额与状态 → 更新退款单
+    const result = await approveRefund(r.id)
+    setHandling(null)
+    if (!result) return
+    toast.success(`已退款 ${formatMoney(result.refund.amount)}`, {
+      description: `${r.id} · 库存已回滚 ${r.items.reduce((a, i) => a + i.quantity, 0)} 件${result.order ? ` · 订单 ${r.orderId} 状态已更新` : ''}`,
+    })
   }
 
   const reject = (r: RefundRecord) => {
@@ -113,7 +107,23 @@ export function RefundsView({ initialOrder }: { initialOrder?: string }) {
             <Button
               variant="outline"
               className="h-9"
-              onClick={() => toast.success(`已导出 ${filtered.length} 张退货单`, { description: '退货退款_20261020.xlsx（演示文件，未实际下载）' })}
+              onClick={() =>
+                downloadCsv(
+                  `退货退款_${todaySuffix()}`,
+                  ['退款单号', '订单号', '创建时间', '退货商品', '退款金额', '退货原因', '状态', '操作人', '处理时间'],
+                  filtered.map((r) => [
+                    r.id,
+                    r.orderId,
+                    r.createdAt,
+                    r.items.map((i) => `${i.name} x${i.quantity}`).join(' / '),
+                    r.amount,
+                    r.reason,
+                    r.status,
+                    r.operator,
+                    r.handledAt ?? '',
+                  ]),
+                )
+              }
             >
               <Download data-icon="inline-start" />
               导出数据
@@ -373,7 +383,7 @@ function NewRefundDialog({
   const selected = lines.filter((l) => l.include && Number(l.qty) > 0)
   const total = selected.reduce((s, l) => s + l.price * (Number(l.qty) || 0), 0)
 
-  const submit = () => {
+  const submit = async () => {
     if (!orderId) {
       toast.info('请先选择要退货的订单')
       return
@@ -388,22 +398,20 @@ function NewRefundDialog({
       return
     }
     setSaving(true)
-    setTimeout(() => {
-      const record = addRefund({
-        orderId,
-        items: selected.map((l) => ({ productId: l.productId, name: l.name, unit: l.unit, price: l.price, quantity: Number(l.qty) })),
-        amount: Math.round(total * 100) / 100,
-        reason,
-        status: '待处理',
-        handledAt: null,
-        stockRolledBack: false,
-      })
-      setSaving(false)
-      onOpenChange(false)
-      setOrderId('')
-      setLines([])
-      toast.success('退货单已创建', { description: `${record.id} · 待处理 · 确认退款后回滚库存` })
-    }, 500)
+    const record = await addRefund({
+      orderId,
+      items: selected.map((l) => ({ productId: l.productId, name: l.name, unit: l.unit, price: l.price, quantity: Number(l.qty) })),
+      amount: Math.round(total * 100) / 100,
+      reason,
+      status: '待处理',
+      handledAt: null,
+      stockRolledBack: false,
+    })
+    setSaving(false)
+    onOpenChange(false)
+    setOrderId('')
+    setLines([])
+    toast.success('退货单已创建', { description: `${record.id} · 待处理 · 确认退款后回滚库存` })
   }
 
   return (

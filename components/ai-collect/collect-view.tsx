@@ -68,7 +68,7 @@ export function CollectView() {
   const current = Math.min(page, pages)
   const rows = tasks.slice((current - 1) * pageSize, current * pageSize)
 
-  const start = () => {
+  const start = async () => {
     if (!selected || !material) {
       toast.info('请先选择采集来源', { description: '准备资料后即可开始 AI 识别' })
       return
@@ -78,7 +78,7 @@ export function CollectView() {
     const hasCsv = files.some((f) => /\.csv$/i.test(f))
     const source: TaskSource = selected === 'file' ? (hasImage ? '图片识别' : hasCsv ? 'CSV 导入' : 'Excel 导入') : sourceLabels[selected]
     setStarting(true)
-    const task = addTask({
+    const task = await addTask({
       source,
       sourceDetail: material.label,
       total: material.count,

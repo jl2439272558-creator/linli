@@ -15,6 +15,7 @@ import { StatusBadge, type Tone } from '@/components/common/status-badge'
 import { TablePagination } from '@/components/common/table-pagination'
 import { useDemoStore } from '@/components/providers/demo-store'
 import { aiAnalysisLogs, type TaskStatus } from '@/lib/mock-data'
+import { downloadCsv, todaySuffix } from '@/lib/export-csv'
 
 const ALL = 'all'
 
@@ -88,7 +89,13 @@ export function AiTasksView() {
           <Button
             variant="outline"
             className="h-9"
-            onClick={() => toast.success(`已导出 ${rows.length} 条任务记录`, { description: 'AI任务记录_20261020.xlsx（演示文件，未实际下载）' })}
+            onClick={() =>
+              downloadCsv(
+                `AI任务记录_${todaySuffix()}`,
+                ['任务号', '采集来源', '来源详情', '资料总数', '成功', '待审核', '状态', '进度', '创建时间', '操作人'],
+                rows.map((t) => [t.id, t.source, t.sourceDetail, t.total, t.success, t.pending, t.status, `${t.progress}%`, t.createdAt, t.operator]),
+              )
+            }
           >
             <Download data-icon="inline-start" />
             导出记录

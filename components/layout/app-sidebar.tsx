@@ -5,12 +5,17 @@ import { usePathname } from 'next/navigation'
 import { Crown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brand } from '@/lib/brand'
-import { navGroups, resolveActiveHref } from '@/lib/nav'
+import { resolveActiveHref } from '@/lib/nav'
+import { visibleNavGroups } from '@/lib/authz'
+import { useAuth } from '@/components/providers/auth-provider'
 import { BrandLogo } from './brand-logo'
 
 export function AppSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname()
+  const { user } = useAuth()
   const active = resolveActiveHref(pathname)
+  // 按登录角色过滤菜单：无权限的分组整体隐藏
+  const groups = visibleNavGroups(user.role)
 
   return (
     <>
@@ -38,7 +43,7 @@ export function AppSidebar({ mobileOpen, onClose }: { mobileOpen?: boolean; onCl
       </div>
 
       <nav aria-label="主导航" className="scrollbar-thin flex-1 overflow-y-auto px-3 py-4">
-        {navGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.label} className="mb-4 last:mb-0">
             <p className="px-3 pb-1.5 text-[11px] font-medium tracking-wider text-muted-foreground/80">{group.label}</p>
             <ul className="flex flex-col gap-0.5">
